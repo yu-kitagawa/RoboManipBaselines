@@ -8,7 +8,9 @@ import dataclasses
 from pathlib import Path
 import shutil
 from typing import Literal
+import json
 
+import einops
 import cv2
 import h5py
 from lerobot.common.datasets.lerobot_dataset import LEROBOT_HOME
@@ -143,7 +145,6 @@ def load_raw_images_per_camera(ep: h5py.File, cameras: list[str]) -> dict[str, n
             # load all images in RAM
             imgs_array = ep[f"/observations/images/{camera}"][:]
         else:
-            import cv2
 
             # load one compressed image after the other in RAM and uncompress
             imgs_array = []
@@ -216,6 +217,40 @@ def populate_dataset(
         imgs_per_cam, state, action, velocity, effort = load_raw_episode_data(ep_path)
         num_frames = state.shape[0]
 
+        if ep_idx == 0:
+            with open(dataset.root / "meta" / "modality.json", "w") as f:
+                modality = {
+                    "state": {
+                        "qpos": {
+                            "start": 0,
+                            "end": 7
+                        }
+                    },
+                    "action": {
+                        "action": {
+                            "start": 0,
+                            "end": 7
+                        }
+                    },
+                    "video": {
+                        "front_rgb": {
+                            "original_key": "observation.images.front_rgb"
+                        },
+                        "side_rgb": {
+                            "original_key": "observation.images.side_rgb"
+                        },
+                        "hand_rgb": {
+                            "original_key": "observation.images.hand_rgb"
+                        }
+                    },
+                    "annotation": {
+                        "human.action.task_description": {
+                            "original_key": "task_index"
+                        }
+                    }
+                }
+                json.dump(modality, f, indent=4)
+
         for i in range(num_frames):
             frame = {
                 "observation.state": state[i],
@@ -237,6 +272,99 @@ def populate_dataset(
     return dataset
 
 
+def get_stats_einops_patterns(dataset, num_workers=0):
+    """These einops patterns will be used to aggregate batches and compute statistics.
+
+    Note: We assume the images are in channel first format
+    """
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        num_workers=num_workers,
+        batch_size=2,
+        shuffle=False,
+    )
+    batch = next(iter(dataloader))
+
+    stats_patterns = {}
+
+    for key in dataset.features:
+        # sanity check that tensors are not float64
+        assert batch[key].dtype != torch.float64
+
+        # if isinstance(feats_type, (VideoFrame, Image)):
+        if key in dataset.meta.camera_keys:
+            # sanity check that images are channel first
+            _, c, h, w = batch[key].shape
+            assert c < h and c < w, f"expect channel first images, but instead {batch[key].shape}"
+
+            # sanity check that images are float32 in range [0,1]
+            assert batch[key].dtype == torch.float32, f"expect torch.float32, but instead {batch[key].dtype=}"
+            assert batch[key].max() <= 1, f"expect pixels lower than 1, but instead {batch[key].max()=}"
+            assert batch[key].min() >= 0, f"expect pixels greater than 1, but instead {batch[key].min()=}"
+
+            stats_patterns[key] = "b c h w -> c 1 1"
+        elif batch[key].ndim == 2:
+            stats_patterns[key] = "b c -> c "
+        elif batch[key].ndim == 1:
+            stats_patterns[key] = "b -> 1"
+        else:
+            raise ValueError(f"{key}, {batch[key].shape}")
+
+    return stats_patterns
+
+
+def create_seeded_dataloader(dataset, batch_size, seed):
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        num_workers=8,
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=False,
+        generator=generator,
+    )
+    return dataloader
+
+
+def flatten_dict(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+    """Flatten a nested dictionary structure by collapsing nested keys into one key with a separator.
+
+    For example:
+    ```
+    >>> dct = {"a": {"b": 1, "c": {"d": 2}}, "e": 3}`
+    >>> print(flatten_dict(dct))
+    {"a/b": 1, "a/c/d": 2, "e": 3}
+    """
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def unflatten_dict(d: dict, sep: str = "/") -> dict:
+    outdict = {}
+    for key, value in d.items():
+        parts = key.split(sep)
+        d = outdict
+        for part in parts[:-1]:
+            if part not in d:
+                d[part] = {}
+            d = d[part]
+        d[parts[-1]] = value
+    return outdict
+
+
+def serialize_dict(stats: dict[str, torch.Tensor | np.ndarray | dict]) -> dict:
+    serialized_dict = {key: value.tolist() for key, value in flatten_dict(stats).items()}
+    return unflatten_dict(serialized_dict)
+
+
 def port_ur5e(
     raw_dir: Path,
     repo_id: str,
@@ -245,7 +373,7 @@ def port_ur5e(
     *,
     episodes: list[int] | None = None,
     push_to_hub: bool = True,
-    mode: Literal["video", "image"] = "image",
+    mode: Literal["video", "image"] = "video",
     dataset_config: DatasetConfig = DEFAULT_DATASET_CONFIG,
 ):
     if (LEROBOT_HOME / repo_id).exists():
@@ -268,6 +396,36 @@ def port_ur5e(
         episodes=episodes,
     )
     dataset.consolidate()
+
+    meta_stats = dataset.meta.stats
+
+    stats_patterns = get_stats_einops_patterns(dataset, 8)
+
+    data_num = len(dataset)
+    q01, q99 = {}, {}
+    data_dir = {}
+    
+    for key, pattern in stats_patterns.items():
+        if key in dataset.meta.camera_keys:
+            continue
+        data_dir[key] = []
+        for i in range(data_num):
+            data_dir[key].append(dataset[i][key].float())
+        data_dir[key] = torch.stack(data_dir[key], dim=0)
+        
+        q01[key] = torch.quantile(data_dir[key], 0.01, 0)
+        q99[key] = torch.quantile(data_dir[key], 0.99, 0)
+    
+    for key in stats_patterns:
+        if key in dataset.meta.camera_keys:
+            continue
+        meta_stats[key]["q01"] = q01[key]
+        meta_stats[key]["q99"] = q99[key]
+
+    serialized_stats = serialize_dict(meta_stats)
+    
+    with open(dataset.root / "meta" / "stats.json", "w") as f:
+        json.dump(serialized_stats, f, indent=4)
 
     if push_to_hub:
         dataset.push_to_hub()

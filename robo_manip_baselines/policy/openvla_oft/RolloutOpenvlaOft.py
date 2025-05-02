@@ -57,7 +57,34 @@ class RolloutOpenvlaOft(RolloutBase):
     def setup_policy(self):
         # Print policy information
         self.print_policy_info()
-        print(f"  - chunk size: {self.model_meta_info['data']['chunk_size']}")
+        print(f"  - chunk size: {8}")
+
+        # Instantiate config (see class GenerateConfig in experiments/robot/libero/run_libero_eval.py for definitions)
+        self.cfg = DeployConfig(
+            pretrained_checkpoint = "../../../openvla/openvla-oft/log/openvla-7b+ur5e_sample+b1+lr-0.0005+lora-r32+dropout-0.0--image_aug--ur5e_sample--100000_chkpt",
+            use_l1_regression = True,
+            use_diffusion = False,
+            use_film = False,
+            num_images_in_input = 1,
+            use_proprio = True,
+            load_in_8bit = False,
+            load_in_4bit = False,
+            center_crop = True,
+            num_open_loop_steps = 8,
+            unnorm_key = "ur5e_sample",
+        )
+
+        # Load OpenVLA-OFT policy and inputs processor
+        self.vla = get_vla(self.cfg)
+        self.processor = get_processor(self.cfg)
+
+        # Load MLP action head to generate continuous actions (via L1 regression)
+        self.action_head = get_action_head(self.cfg, llm_dim=self.vla.llm_dim)
+
+        # Load proprio projector to map proprio to language embedding space
+        self.proprio_projector = get_proprio_projector(self.cfg, llm_dim=self.vla.llm_dim, proprio_dim=7)
+
+        self.device = torch.device("cpu")
 
         # Construct policy
         #self.policy = ACTPolicy(self.model_meta_info["policy"]["args"])
@@ -89,63 +116,22 @@ class RolloutOpenvlaOft(RolloutBase):
     def setup_variables(self):
         super().setup_variables()
 
-        self.all_actions_history = []
-
     def infer_policy(self):
         # Infer
-        # Instantiate config (see class GenerateConfig in experiments/robot/libero/run_libero_eval.py for definitions)
-        cfg = DeployConfig(
-            pretrained_checkpoint = "../../../openvla/openvla-oft/log/openvla-7b+aloha_sample+b4+lr-0.0005+lora-r32+dropout-0.0--image_aug--aloha_default--90000_chkpt",
-            use_l1_regression = True,
-            use_diffusion = False,
-            use_film = True,
-            num_images_in_input = 3,
-            use_proprio = True,
-            load_in_8bit = False,
-            load_in_4bit = False,
-            center_crop = True,
-            num_open_loop_steps = 25,
-            unnorm_key = "aloha_sample",
-        )
-
-        # Load OpenVLA-OFT policy and inputs processor
-        vla = get_vla(cfg)
-        processor = get_processor(cfg)
-
-        # Load MLP action head to generate continuous actions (via L1 regression)
-        action_head = get_action_head(cfg, llm_dim=vla.llm_dim)
-
-        # Load proprio projector to map proprio to language embedding space
-        proprio_projector = get_proprio_projector(cfg, llm_dim=vla.llm_dim, proprio_dim=14)
-
-        self.device = torch.device("cpu")
 
         state = self.get_state()
         state = state.squeeze()
         images = self.get_images()
 
         observation = {
-            "full_image": images[0],
+            "full_image": cv2.resize(images[0], dsize=(256, 256)),
             "state": state
         }
 
         # Generate robot action chunk (sequence of future actions)
-        all_actions = get_vla_action(cfg, vla, processor, observation, "do something", action_head, proprio_projector)
+        all_actions = get_vla_action(self.cfg, self.vla, self.processor, observation, "do something", self.action_head, self.proprio_projector)
 
-        self.all_actions_history.append(
-            all_actions.cpu().detach().numpy().astype(np.float64)
-        )
-        if len(self.all_actions_history) > self.model_meta_info["data"]["chunk_size"]:
-            self.all_actions_history.pop(0)
-
-        # Apply temporal ensembling to action
-        k = 0.01
-        exp_weights = np.exp(-k * np.arange(len(self.all_actions_history)))
-        exp_weights = exp_weights / exp_weights.sum()
-        action = np.zeros(self.action_dim)
-        for action_idx, _all_actions in enumerate(reversed(self.all_actions_history)):
-            action += exp_weights[::-1][action_idx] * _all_actions[action_idx]
-        self.policy_action = denormalize_data(action, self.model_meta_info["action"])
+        self.policy_action = all_actions.pop(0)
         self.policy_action_list = np.concatenate(
             [self.policy_action_list, self.policy_action[np.newaxis]]
         )
@@ -170,18 +156,6 @@ class RolloutOpenvlaOft(RolloutBase):
 
         # Plot action
         self.plot_action(self.ax[0, len(self.camera_names)])
-
-        # Draw attention images
-        attention_shape = (15, 20 * len(self.camera_names))
-        for layer_idx, layer in enumerate(self.policy.model.transformer.encoder.layers):
-            if layer.self_attn.correlation_mat is None:
-                continue
-            self.ax[1, layer_idx].imshow(
-                layer.self_attn.correlation_mat[2:, 1].reshape(attention_shape)
-            )
-            self.ax[1, layer_idx].set_title(
-                f"attention image ({layer_idx})", fontsize=20
-            )
 
         # Finalize plot
         self.canvas.draw()
