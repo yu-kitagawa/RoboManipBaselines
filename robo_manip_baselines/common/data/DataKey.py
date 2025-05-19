@@ -7,6 +7,9 @@ class DataKey:
     # Time [s]
     TIME = "time"
 
+    # Reward
+    REWARD = "reward"
+
     # Measured joint position (including both arm and gripper)
     MEASURED_JOINT_POS = "measured_joint_pos"
     # Command joint position (including both arm and gripper)

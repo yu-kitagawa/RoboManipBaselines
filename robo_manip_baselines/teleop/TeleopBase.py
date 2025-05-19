@@ -315,7 +315,7 @@ class TeleopBase(ABC):
             if self.phase_manager.is_phase("TeleopPhase"):
                 self.record_data()
 
-            self.obs, _, _, _, self.info = self.env.step(action)
+            self.obs, self.reward, _, _, self.info = self.env.step(action)
 
             self.draw_image()
 
@@ -394,6 +394,9 @@ class TeleopBase(ABC):
         self.data_manager.append_single_data(
             DataKey.TIME, self.phase_manager.phase.get_elapsed_duration()
         )
+
+        # Add reward
+        self.data_manager.append_single_data(DataKey.REWARD, self.reward)
 
         # Add measured data
         for key in self.env.unwrapped.measured_keys_to_save:

@@ -6,6 +6,13 @@ from .MujocoUR5eEnvBase import MujocoUR5eEnvBase
 
 
 class MujocoUR5eDoorEnv(MujocoUR5eEnvBase):
+    default_camera_config = {
+        "azimuth": 45.0,
+        "elevation": -45.0,
+        "distance": 1.8,
+        "lookat": [-0.2, -0.2, 0.8],
+    }
+
     def __init__(
         self,
         **kwargs,
@@ -41,6 +48,9 @@ class MujocoUR5eDoorEnv(MujocoUR5eEnvBase):
                 [0.0, 0.09, 0.0],
             ]
         )  # [m]
+
+    def _get_success(self):
+        return self.data.joint("door").qpos[0] < np.deg2rad(-60.0)
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:

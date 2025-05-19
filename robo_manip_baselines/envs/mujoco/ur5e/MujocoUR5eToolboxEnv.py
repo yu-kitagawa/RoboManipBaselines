@@ -45,5 +45,6 @@ class MujocoUR5eToolboxEnv(MujocoUR5eEnvBase):
     def modify_world(self, world_idx=None, cumulative_idx=None):
         # if world_idx is None:
         #     world_idx = cumulative_idx % len(self.toolbox_pos_offsets)
+        world_idx = 0
 
         return world_idx

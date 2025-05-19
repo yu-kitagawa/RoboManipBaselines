@@ -6,6 +6,13 @@ from .MujocoUR5eEnvBase import MujocoUR5eEnvBase
 
 
 class MujocoUR5eCabinetEnv(MujocoUR5eEnvBase):
+    default_camera_config = {
+        "azimuth": 45.0,
+        "elevation": -45.0,
+        "distance": 1.8,
+        "lookat": [-0.2, -0.2, 0.8],
+    }
+
     def __init__(
         self,
         **kwargs,

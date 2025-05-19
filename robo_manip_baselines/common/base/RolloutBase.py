@@ -102,6 +102,11 @@ class EndRolloutPhase(PhaseBase):
 
     def check_transition(self):
         if (self.op.key == ord("n")) or (self.op.args.duration is not None):
+            reward_status_str = "success" if self.op.reward > 0.0 else "failure"
+            print(
+                f"Terminate the rollout phase with the task {reward_status_str} reward.",
+                flush=True,
+            )
             self.op.quit_flag = True
 
         return False
@@ -303,7 +308,9 @@ class RolloutBase(ABC):
                     for key in self.env.unwrapped.command_keys_for_step
                 ]
             )
-            self.obs, _, self.terminated, _, self.info = self.env.step(env_action)
+            self.obs, self.reward, self.terminated, _, self.info = self.env.step(
+                env_action
+            )
 
             self.phase_manager.post_update()
 

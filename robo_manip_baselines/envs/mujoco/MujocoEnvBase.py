@@ -73,8 +73,12 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
         self.do_simulation(action, self.frame_skip)
 
         obs = self._get_obs()
-        reward = 0.0
-        terminated = False
+        if self._get_success():
+            reward = 1.0
+            terminated = True
+        else:
+            reward = 0.0
+            terminated = False
         info = self._get_info()
 
         if self.render_mode == "human":
@@ -118,6 +122,9 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
 
     def _get_reset_info(self):
         return self._get_info()
+
+    def _get_success(self):
+        return False
 
     def reset_model(self):
         self.set_state(self.init_qpos, self.init_qvel)

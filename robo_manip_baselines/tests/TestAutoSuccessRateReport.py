@@ -42,6 +42,11 @@ class TestAutoSuccessRateReport(unittest.TestCase):
             command
         )  # Verify that the method was called with the specified arguments
 
+    def test_check_apt_packages_installed(self):
+        package_names = AutoSuccessRateReport.APT_REQUIRED_PACKAGE_NAMES
+        print(f"[{self.test_check_apt_packages_installed.__name__}] {package_names=}")
+        self.auto_success_rate_report.check_apt_packages_installed(package_names)
+
 
 if __name__ == "__main__":
     unittest.main()

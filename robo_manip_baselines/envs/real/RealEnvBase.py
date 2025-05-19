@@ -88,6 +88,9 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                     f"[{self.__class__.__name__}] Specified GelSight (name: {tactile_name}, ID: {tactile_id}) not detected."
                 )
 
+    def get_input_device_kwargs(self, input_device_name):
+        return {}
+
     def reset(self, *, seed=None, options=None):
         self.init_time = time.time()
 
