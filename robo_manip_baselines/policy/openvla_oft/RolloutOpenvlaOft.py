@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Union
+import json
 
 import cv2
 import matplotlib.pylab as plt
@@ -12,6 +13,7 @@ import torch
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../../../openvla/openvla-oft"))
 import pickle
 from experiments.robot.openvla_utils import get_action_head, get_processor, get_proprio_projector, get_vla, get_vla_action
+from prismatic.vla.constants import PROPRIO_DIM
 
 from robo_manip_baselines.common import RolloutBase, denormalize_data
 
@@ -61,11 +63,11 @@ class RolloutOpenvlaOft(RolloutBase):
 
         # Instantiate config (see class GenerateConfig in experiments/robot/libero/run_libero_eval.py for definitions)
         self.cfg = DeployConfig(
-            pretrained_checkpoint = "../../../openvla/openvla-oft/log/openvla-7b+ur5e_sample+b1+lr-0.0005+lora-r32+dropout-0.0--image_aug--ur5e_sample--100000_chkpt",
+            pretrained_checkpoint = self.args.checkpoint,
             use_l1_regression = True,
             use_diffusion = False,
             use_film = False,
-            num_images_in_input = 1,
+            num_images_in_input = 2,
             use_proprio = True,
             load_in_8bit = False,
             load_in_4bit = False,
@@ -73,6 +75,12 @@ class RolloutOpenvlaOft(RolloutBase):
             num_open_loop_steps = 8,
             unnorm_key = "ur5e_sample",
         )
+
+        self.cmd_args = " ".join(sys.argv).lower()
+        if "aloha" in self.cmd_args:
+            self.camera_names = ["overhead_cam", "wrist_cam_left", "wrist_cam_right"]
+        elif "ur5e" in self.cmd_args:
+            self.camera_names = ["front", "hand"]
 
         # Load OpenVLA-OFT policy and inputs processor
         self.vla = get_vla(self.cfg)
@@ -82,7 +90,7 @@ class RolloutOpenvlaOft(RolloutBase):
         self.action_head = get_action_head(self.cfg, llm_dim=self.vla.llm_dim)
 
         # Load proprio projector to map proprio to language embedding space
-        self.proprio_projector = get_proprio_projector(self.cfg, llm_dim=self.vla.llm_dim, proprio_dim=7)
+        self.proprio_projector = get_proprio_projector(self.cfg, llm_dim=self.vla.llm_dim, proprio_dim=PROPRIO_DIM)
 
         self.device = torch.device("cpu")
 
@@ -115,16 +123,19 @@ class RolloutOpenvlaOft(RolloutBase):
 
     def setup_variables(self):
         super().setup_variables()
+        if "aloha" in self.cmd_args:
+            self.policy_action_list = np.empty((0, 14))
 
     def infer_policy(self):
         # Infer
 
         state = self.get_state()
-        state = state.squeeze()
         images = self.get_images()
 
         observation = {
             "full_image": cv2.resize(images[0], dsize=(256, 256)),
+            "left_wrist_image": cv2.resize(images[1], dsize=(256, 256)),
+            #"right_wrist_image": cv2.resize(images[2], dsize=(256, 256)),
             "state": state
         }
 
@@ -136,6 +147,23 @@ class RolloutOpenvlaOft(RolloutBase):
             [self.policy_action_list, self.policy_action[np.newaxis]]
         )
     
+    def get_state(self):
+        if len(self.state_keys) == 0:
+            state = np.zeros(0, dtype=np.float32)
+        else:
+            state = np.concatenate(
+                [
+                    self.motion_manager.get_data(state_key, self.obs)
+                    for state_key in self.state_keys
+                ]
+            )
+        # with open(os.path.join(self.args.checkpoint, "dataset_statistics.json"), "r") as f:
+        #     stats = json.load(f)
+        # data_name = str(self.args.checkpoint).split("+")
+        # state = (state - stats[data_name[1]]["action"]["mean"]) / stats[data_name[1]]["action"]["std"]
+
+        return state
+
     def get_images(self):
         # Assume all images are the same size
         images = []
