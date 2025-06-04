@@ -213,6 +213,17 @@ def populate_dataset(
 
     for ep_idx in tqdm.tqdm(episodes):
         ep_path = hdf5_files[ep_idx]
+        raw_file_string = ep_path.parents[1].name
+        if "MujocoUR5eCable" in raw_file_string:
+            task = "pass the cable between two poles"
+        elif "MujocoUR5eRing" in raw_file_string:
+            task = "pick a ring and put it around the pole"
+        elif "MujocoUR5eParticle" in raw_file_string:
+            task = "scoop up particles"
+        elif "MujocoUR5eCloth" in raw_file_string:
+            task = "roll up the cloth"
+        elif "MujocoUR5eDoor" in raw_file_string:
+            task = "open the door"
 
         imgs_per_cam, state, action, velocity, effort = load_raw_episode_data(ep_path)
         num_frames = state.shape[0]
