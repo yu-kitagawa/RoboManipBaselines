@@ -9,10 +9,10 @@ class GraspPhase(GraspPhaseBase):
 
 
 class OperationIsaacUR5eCabinet:
-    def setup_env(self):
+    def setup_env(self, render_mode="human"):
         self.env = gym.make(
             "robo_manip_baselines/IsaacUR5eCabinetEnv-v0",
-            render_mode="human",
+            render_mode=render_mode,
         )
 
     def get_pre_motion_phases(self):

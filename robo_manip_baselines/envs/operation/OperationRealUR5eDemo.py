@@ -17,7 +17,7 @@ class OperationRealUR5eDemo:
         self.gelsight_ids = gelsight_ids
         super().__init__()
 
-    def setup_env(self):
+    def setup_env(self, render_mode="human"):
         self.env = gym.make(
             "robo_manip_baselines/RealUR5eDemoEnv-v0",
             robot_ip=self.robot_ip,

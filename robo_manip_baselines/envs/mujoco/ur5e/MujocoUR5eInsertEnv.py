@@ -42,6 +42,16 @@ class MujocoUR5eInsertEnv(MujocoUR5eEnvBase):
             ]
         )  # [m]
 
+    def _get_success(self):
+        peg_pos = self.data.body("peg").xpos.copy()
+        hole_pos = self.data.body("hole").xpos.copy()
+
+        xy_thre = 0.01  # [m]
+        z_thre = hole_pos[2] + 0.05  # [m]
+        return (np.max(np.abs(peg_pos[:2] - hole_pos[:2])) < xy_thre) and (
+            peg_pos[2] < z_thre
+        )
+
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:
             world_idx = cumulative_idx % len(self.hole_pos_offsets)

@@ -1,5 +1,3 @@
-"""Script for evaluation based on a specific commit."""
-
 import argparse
 import fcntl
 import glob
@@ -20,13 +18,11 @@ LOCK_FILE_PATH = str(
     Path("/tmp")
     / f"{'_'.join(Path(__file__).resolve().parts[-4:-1] + (Path(__file__).resolve().stem,))}.lock"
 )
-ROLLOUT_REWARD_STATUS_PATTERN = re.compile(
-    r"Terminate the rollout phase with the task (success|failure) reward"
-)
+ROLLOUT_RESULT_PRINT_PATTERN = re.compile(r"Rollout result: (success|failure)")
 
 
-class AutoSuccessRateReport:
-    """Class for generating success rate reports based on commit evaluation."""
+class AutoEval:
+    """Class that automatically performs installation, training, and rollout."""
 
     REPOSITORY_NAME = "RoboManipBaselines"
     THIRD_PARTY_PATHS = {
@@ -47,6 +43,7 @@ class AutoSuccessRateReport:
         env,
         commit_id,
         repository_owner_name=None,
+        checkpoint_base_dir=None,
         is_rollout_disabled=False,
     ):
         """Initialize the instance with default or provided configurations."""
@@ -57,6 +54,11 @@ class AutoSuccessRateReport:
         self.is_rollout_disabled = is_rollout_disabled
 
         self.repository_tmp_dir = os.path.join(tempfile.mkdtemp(), self.REPOSITORY_NAME)
+        self.checkpoint_temp_dir = (
+            tempfile.mkdtemp(dir=checkpoint_base_dir)
+            if checkpoint_base_dir is not None
+            else self.repository_tmp_dir
+        )
         self.venv_python = os.path.join(tempfile.mkdtemp(), "venv/bin/python")
         self.dataset_dir = None
 
@@ -67,9 +69,13 @@ class AutoSuccessRateReport:
         )
 
     @classmethod
-    def exec_command(cls, command, cwd=None, regex_pattern=None):
-        """Execute a shell command, optionally in the specified working directory."""
-        print(f"[{cls.__name__}] Executing command: {' '.join(command)}", flush=True)
+    def exec_command(cls, command, cwd=None, stdout_line_match_pattern=None):
+        """Execute a shell command, optionally in the specified working directory,
+        and return lines from standard output that match the given regex pattern."""
+        print(
+            f"[{cls.__name__}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Executing command: {' '.join(command)}",
+            flush=True,
+        )
 
         matched_results = []
 
@@ -82,10 +88,10 @@ class AutoSuccessRateReport:
             text=True,
             bufsize=1,
         ) as process:
-            for line in process.stdout:
-                print(line, end="", flush=True)
-                if regex_pattern:
-                    match = regex_pattern.match(line)
+            for stdout_line in process.stdout:
+                print(stdout_line, end="", flush=True)
+                if stdout_line_match_pattern:
+                    match = stdout_line_match_pattern.match(stdout_line)
                     if match:
                         matched_results.append(match)
 
@@ -140,18 +146,19 @@ class AutoSuccessRateReport:
 
     def install_each_policy(self):
         """Install dependencies specific to each policy."""
+        self.exec_command(
+            [
+                self.venv_python,
+                "-m",
+                "pip",
+                "install",
+                "-e",
+                ".[" + camel_to_snake(self.policy).replace("_", "-") + "]",
+            ],
+            cwd=self.repository_tmp_dir,
+        )
+
         if self.policy in self.THIRD_PARTY_PATHS:
-            self.exec_command(
-                [
-                    self.venv_python,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-e",
-                    ".[" + camel_to_snake(self.policy).replace("_", "-") + "]",
-                ],
-                cwd=self.repository_tmp_dir,
-            )
             self.exec_command(
                 [self.venv_python, "-m", "pip", "install", "-e", "."],
                 cwd=os.path.join(
@@ -174,7 +181,9 @@ class AutoSuccessRateReport:
 
         # dl=0 -> dl=1
         if dataset_url.endswith("dl=0"):
-            print(f"[{cls.__name__}] The URL ends with 'dl=0'. Changing it to 'dl=1'.")
+            print(
+                f"[{cls.__name__}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] The URL ends with 'dl=0'. Changing it to 'dl=1'."
+            )
             dataset_url = dataset_url[: -len("dl=0")] + "dl=1"
 
         assert dataset_url.endswith(
@@ -216,7 +225,7 @@ class AutoSuccessRateReport:
             glob.glob(os.path.join(dataset_temp_dir, "dataset", "*.rmb"))
         )
         print(
-            f"[{self.__class__.__name__}] {rmb_items_count} rmb items have been unzipped."
+            f"[{self.__class__.__name__}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {rmb_items_count} data files in RMB format have been unzipped."
         )
         self.dataset_dir = os.path.join(
             dataset_temp_dir,
@@ -225,16 +234,24 @@ class AutoSuccessRateReport:
 
     def get_dataset(self, dataset_location):
         if bool(urlparse(dataset_location).scheme):
-            self.download_dataset(self, dataset_location)
+            self.download_dataset(dataset_location)
             return
-        if os.path.isdir(dataset_location):
+        elif os.path.isdir(dataset_location):
             self.dataset_dir = dataset_location
             return
-        raise ValueError(f"Invalid: {dataset_location=}.")
+        else:
+            raise ValueError(f"Invalid: {dataset_location=}.")
 
-    def train(self, args_file_train):
+    def train(self, args_file_train, seed):
         """Execute the training process using the specified arguments file."""
         assert self.dataset_dir
+
+        if seed == -1:
+            seed = int(time.time() * 1000000) % (2**32)
+            print(
+                f"[{self.__class__.__name__}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {seed=}"
+            )
+
         command = [
             self.venv_python,
             os.path.join(self.repository_tmp_dir, "robo_manip_baselines/bin/Train.py"),
@@ -243,14 +260,17 @@ class AutoSuccessRateReport:
             self.dataset_dir,
             "--checkpoint_dir",
             os.path.join(
-                self.repository_tmp_dir,
+                self.checkpoint_temp_dir,
                 "robo_manip_baselines/checkpoint_dir/",
                 self.policy,
                 self.env,
             ),
         ]
+        if seed is not None:
+            command.extend(["--seed", str(seed)])
         if args_file_train:
             command.append("@" + args_file_train)
+
         self.exec_command(command)
 
     def rollout(self, args_file_rollout, rollout_duration, rollout_world_idx_list):
@@ -267,7 +287,7 @@ class AutoSuccessRateReport:
                 self.env,
                 "--checkpoint",
                 os.path.join(
-                    self.repository_tmp_dir,
+                    self.checkpoint_temp_dir,
                     "robo_manip_baselines/checkpoint_dir/",
                     self.policy,
                     self.env,
@@ -275,32 +295,64 @@ class AutoSuccessRateReport:
                 ),
                 "--duration",
                 f"{rollout_duration}",
+                "--no_plot",
+                "--no_render",
+                "--save_last_image",
+                "--output_image_dir",
+                os.path.join(
+                    self.checkpoint_temp_dir,
+                    "robo_manip_baselines/checkpoint_dir/",
+                    self.policy,
+                    self.env,
+                ),
             ]
             if world_idx is not None:
                 command.extend(["--world_idx", f"{world_idx}"])
             if args_file_rollout:
                 command.append("@" + args_file_rollout)
+
             reward_statuses = self.exec_command(
-                command, regex_pattern=ROLLOUT_REWARD_STATUS_PATTERN
+                command, stdout_line_match_pattern=ROLLOUT_RESULT_PRINT_PATTERN
             )
             assert len(reward_statuses) == 1, f"{len(reward_statuses)=}"
             assert reward_statuses[0].group(1) in (
                 "success",
                 "failure",
             ), f"{reward_statuses[0].group(1)=}"
+
             task_success_list.append(int(reward_statuses[0].group(1) == "success"))
 
         return task_success_list
 
     def save_result(self, task_success_list):
         """Save task_success_list."""
+
         output_dir_path = os.path.join(self.result_datetime_dir, self.policy, self.env)
         os.makedirs(output_dir_path, exist_ok=True)
         output_file_path = os.path.join(output_dir_path, "task_success_list.txt")
+
+        if os.path.exists(output_file_path):
+            base, ext = os.path.splitext(output_file_path)
+            max_attempts = 100
+            for counter in range(1, max_attempts + 1):
+                new_file_path = f"{base}_old_{counter}{ext}"
+                if not os.path.exists(new_file_path):
+                    os.rename(output_file_path, new_file_path)
+                    print(
+                        f"[{self.__class__.__name__}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Existing file renamed to: {new_file_path}"
+                    )
+                    break
+            else:
+                raise RuntimeError(
+                    f"Exceeded {max_attempts} attempts to rename existing file. "
+                    f"Too many conflicting versions exist in: {output_dir_path}"
+                )
+
         with open(output_file_path, "w", encoding="utf-8") as f:
             f.write(" ".join(map(str, task_success_list)))
-
-        print(f"File has been saved: {output_file_path}")
+        print(
+            f"[{self.__class__.__name__}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] File has been saved: {output_file_path}"
+        )
 
     def start(
         self,
@@ -309,9 +361,10 @@ class AutoSuccessRateReport:
         args_file_rollout,
         rollout_duration,
         rollout_world_idx_list,
+        seed=None,
     ):
         """Start all required processes."""
-        with open(LOCK_FILE_PATH, "w") as lock_file:
+        with open(LOCK_FILE_PATH, "w", encoding="utf-8") as lock_file:
             print(f"[{self.__class__.__name__}] Lock file: {LOCK_FILE_PATH}")
             print(f"[{self.__class__.__name__}] Attempting to acquire lock...")
             fcntl.flock(lock_file, fcntl.LOCK_EX)
@@ -327,7 +380,7 @@ class AutoSuccessRateReport:
                 self.install_each_policy()
 
                 self.get_dataset(dataset_location)
-                self.train(args_file_train)
+                self.train(args_file_train, seed)
                 if not self.is_rollout_disabled:
                     task_success_list = self.rollout(
                         args_file_rollout, rollout_duration, rollout_world_idx_list
@@ -398,7 +451,21 @@ def parse_argument():
         "--rollout_world_idx_list",
         type=int,
         nargs="*",
-        help="list of world indexes",
+        required=True,
+        help="list of world indicies",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        required=False,
+        help="random seed; use -1 to generate different value on each run",
+    )
+    parser.add_argument(
+        "--checkpoint_base_dir",
+        type=str,
+        required=False,
+        default=None,
+        help="directory for temporary checkpoint storage if specified",
     )
     parser.add_argument(
         "-t",
@@ -428,37 +495,39 @@ if __name__ == "__main__":
     is_rollout_disabled = args.rollout_duration <= 0.0
     if is_rollout_disabled:
         print(
-            f"[main] rollout step is disabled because {args.rollout_duration=} (<= 0)."
+            f"[{AutoEval.__class__.__name__}] rollout step is disabled because {args.rollout_duration=} (<= 0)."
         )
 
     def run_once():
         """Execute the start function."""
         for policy in args.policies:
-            success_report = AutoSuccessRateReport(
+            auto_eval = AutoEval(
                 policy,
                 args.env,
                 args.commit_id,
                 args.repository_owner_name,
+                args.checkpoint_base_dir,
                 is_rollout_disabled,
             )
-            success_report.start(
+            auto_eval.start(
                 args.dataset_location,
                 args.args_file_train,
                 args.args_file_rollout,
                 args.rollout_duration,
                 args.rollout_world_idx_list,
+                args.seed,
             )
 
     # Immediate execution mode (when -t is not specified)
     if not args.daily_schedule_time:
         run_once()
-        print("[main] Completed one-time run. Exiting.")
+        print(f"[{AutoEval.__class__.__name__}] Completed one-time run. Exiting.")
         sys.exit(0)
 
     # Scheduling mode
     schedule.every().day.at(args.daily_schedule_time).do(run_once)
     print(
-        f"[main] Scheduled daily run at {args.daily_schedule_time}. Waiting...",
+        f"[{AutoEval.__class__.__name__}] Scheduled daily run at {args.daily_schedule_time}. Waiting...",
         flush=True,
     )
 
@@ -467,4 +536,4 @@ if __name__ == "__main__":
             schedule.run_pending()
             time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
-        print("\n[main] Scheduler stopped by user.")
+        print("\n[{AutoEval.__class__.__name__}] Scheduler stopped by user.")

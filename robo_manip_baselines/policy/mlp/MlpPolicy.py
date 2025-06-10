@@ -12,14 +12,20 @@ class MlpPolicy(nn.Module):
         state_dim,
         action_dim,
         num_images,
+        n_obs_steps,
+        n_action_steps,
         hidden_dim_list,
         state_feature_dim,
     ):
         super().__init__()
 
+        # Setup Variable
+        self.n_obs_steps = n_obs_steps
+        self.n_action_steps = n_action_steps
+
         # Instantiate state feature extractor
         self.state_feature_extractor = nn.Sequential(
-            nn.Linear(state_dim, state_feature_dim),
+            nn.Linear(state_dim * self.n_obs_steps, state_feature_dim),
             # nn.BatchNorm1d(state_feature_dim),
             nn.ReLU(),
         )
@@ -34,8 +40,14 @@ class MlpPolicy(nn.Module):
         image_feature_dim = resnet_model.fc.in_features
 
         # Instantiate linear layers
-        combined_feature_dim = state_feature_dim + num_images * image_feature_dim
-        linear_dim_list = [combined_feature_dim] + hidden_dim_list + [action_dim]
+        combined_feature_dim = (
+            state_feature_dim + num_images * n_obs_steps * image_feature_dim
+        )
+        linear_dim_list = (
+            [combined_feature_dim]
+            + hidden_dim_list
+            + [action_dim * self.n_action_steps]
+        )
         linear_layers = []
         for linear_idx in range(len(linear_dim_list) - 1):
             input_dim = linear_dim_list[linear_idx]
@@ -58,19 +70,24 @@ class MlpPolicy(nn.Module):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 
-    def forward(self, state, images):
-        batch_size, num_images, C, H, W = images.shape
+    def forward(self, state_seq, images_seq):
+        batch_size, _, _, C, H, W = images_seq.shape
+
+        # Reshape state_seq and images_seq
+        state_seq = state_seq.reshape(batch_size, -1)
+        images_seq = images_seq.reshape(batch_size, -1, C, H, W)
 
         # Extract state feature
         state_feature = self.state_feature_extractor(
-            state
+            state_seq
         )  # (batch_size, state_feature_dim)
 
         # Extract image feature
         image_features = []
-        for i in range(num_images):
+
+        for i in range(images_seq.shape[1]):
             image_feature = self.image_feature_extractor(
-                images[:, i]
+                images_seq[:, i]
             )  # (batch_size, image_feature_dim, 1, 1)
             image_feature = image_feature.view(
                 batch_size, -1
@@ -78,12 +95,19 @@ class MlpPolicy(nn.Module):
             image_features.append(image_feature)
         image_features = torch.cat(
             image_features, dim=1
-        )  # (batch_size, num_images * image_feature_dim)
+        )  # (batch_size, num_images * n_obs_steps * image_feature_dim)
 
         # Apply linear layers
         combined_feature = torch.cat(
             [state_feature, image_features], dim=1
         )  # (batch_size, combined_feature_dim)
-        action = self.linear_layer_seq(combined_feature)  # (batch_size, action_dim)
+        action_seq = self.linear_layer_seq(
+            combined_feature
+        )  # (batch_size, action_dim * n_action_steps)
 
-        return action
+        # Reshape action_seq
+        action_seq = action_seq.reshape(
+            batch_size, self.n_action_steps, -1
+        )  # (batch_size, n_action_steps, action_dim)
+
+        return action_seq

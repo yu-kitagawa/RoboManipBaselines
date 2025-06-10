@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import os
 import pickle
 import sys
@@ -18,6 +19,8 @@ from ..data.DataKey import DataKey
 from ..manager.MotionManager import MotionManager
 from ..manager.PhaseManager import PhaseManager
 from ..utils.DataUtils import normalize_data
+from ..utils.MathUtils import set_random_seed
+from ..utils.MiscUtils import remove_suffix
 from .PhaseBase import PhaseBase
 
 
@@ -55,7 +58,9 @@ class RolloutPhase(PhaseBase):
         self.op.set_command_data()
 
     def post_update(self):
-        if self.op.rollout_time_idx % self.op.args.skip_draw == 0:
+        if (not self.op.args.no_plot) and (
+            self.op.rollout_time_idx % self.op.args.skip_draw == 0
+        ):
             self.op.draw_plot()
 
         self.op.rollout_time_idx += 1
@@ -63,32 +68,41 @@ class RolloutPhase(PhaseBase):
     def check_transition(self):
         elapsed_duration = self.get_elapsed_duration()
 
-        if self.op.terminated and self.termination_time is None:
-            self.termination_time = elapsed_duration
-
         transition_flag = False
-        post_termination_duration = 5.0  # [s]
         if self.op.key == ord("n"):
             transition_flag = True
-        elif (self.termination_time is not None) and (
-            elapsed_duration > self.termination_time + post_termination_duration
-        ):
-            print(
-                f"[{self.op.__class__.__name__}] Terminate the rollout phase because the environment has been terminated."
-            )
-            transition_flag = True
-        elif (
-            (self.termination_time is None)
-            and (self.op.args.duration is not None)
-            and (elapsed_duration > self.op.args.duration)
-        ):
-            print(
-                f"[{self.op.__class__.__name__}] Terminate the rollout phase because the maximum duration has elapsed."
-            )
-            transition_flag = True
+        elif self.op.args.auto_exit:
+            if self.op.terminated and (self.termination_time is None):
+                self.termination_time = elapsed_duration
+
+            post_termination_duration = 3.0  # [s]
+            if self.termination_time is not None:
+                if elapsed_duration > self.termination_time + post_termination_duration:
+                    print(
+                        f"[{self.op.__class__.__name__}] Terminate the rollout phase because the environment has been terminated."
+                    )
+                    transition_flag = True
+            else:
+                if elapsed_duration > self.op.args.max_duration:
+                    print(
+                        f"[{self.op.__class__.__name__}] Terminate the rollout phase because the maximum duration has elapsed."
+                    )
+                    transition_flag = True
 
         if transition_flag:
             self.op.print_statistics()
+
+            if self.op.args.save_last_image:
+                self.op.save_rgb_image()
+
+            reward_status_str = "success" if self.op.reward > 0.0 else "failure"
+            print(
+                # Do not change the following print description, as it will be used
+                # to automatically obtain the task success/failure result
+                f"Rollout result: {reward_status_str}",
+                flush=True,
+            )
+
             return True
         else:
             return False
@@ -98,15 +112,11 @@ class EndRolloutPhase(PhaseBase):
     def start(self):
         super().start()
 
-        print(f"[{self.op.__class__.__name__}] Press the 'n' key to exit.")
+        if not self.op.args.auto_exit:
+            print(f"[{self.op.__class__.__name__}] Press the 'n' key to exit.")
 
     def check_transition(self):
-        if (self.op.key == ord("n")) or (self.op.args.duration is not None):
-            reward_status_str = "success" if self.op.reward > 0.0 else "failure"
-            print(
-                f"Terminate the rollout phase with the task {reward_status_str} reward.",
-                flush=True,
-            )
+        if (self.op.key == ord("n")) or self.op.args.auto_exit:
             self.op.quit_flag = True
 
         return False
@@ -116,13 +126,17 @@ class RolloutBase(ABC):
     def __init__(self):
         self.setup_args()
 
+        set_random_seed(self.args.seed)
+
         self.setup_model_meta_info()
 
         self.setup_policy()
 
-        self.setup_env()
+        render_mode = None if self.args.no_render else "human"
+        self.setup_env(render_mode=render_mode)
 
-        self.setup_plot()
+        if not self.args.no_plot:
+            self.setup_plot()
 
         self.setup_variables()
 
@@ -162,8 +176,10 @@ class RolloutBase(ABC):
             "--world_random_scale",
             nargs="+",
             type=float,
+            default=None,
             help="random scale of simulation world (no randomness by default)",
         )
+
         parser.add_argument(
             "--skip",
             type=int,
@@ -174,24 +190,54 @@ class RolloutBase(ABC):
             type=int,
             help="step interval to draw the plot",
         )
-        parser.add_argument("--seed", type=int, default=42, help="random seed")
+
+        parser.add_argument("--seed", type=int, default=-1, help="random seed")
+
         parser.add_argument(
-            "--win_xy_policy",
+            "--no_render",
+            action="store_true",
+            help="whether to disable simulation rendering",
+        )
+        parser.add_argument(
+            "--no_plot", action="store_true", help="whether to disable policy plot"
+        )
+        parser.add_argument(
+            "--win_xy_plot",
             type=int,
             nargs=2,
             help="xy position of window to plot policy information",
         )
+
         parser.add_argument(
             "--wait_before_start",
             action="store_true",
             help="whether to wait a key input before starting motion",
         )
         parser.add_argument(
-            "--duration",
-            type=float,
-            default=None,
-            help="maximum duration to rollout policy [s]",
+            "--auto_exit",
+            action="store_true",
+            help="whether to automatically exit from rollout",
         )
+        parser.add_argument(
+            "--max_duration",
+            type=float,
+            default=30.0,
+            help="maximum rollout duration for automatic exit [s]",
+        )
+
+        parser.add_argument(
+            "--save_last_image",
+            action="store_true",
+            help="whether to save the observation image of the last frame",
+        )
+        parser.add_argument(
+            "--output_image_dir",
+            type=str,
+            default=".",
+            help="directory to save the output image (default: current directory)",
+        )
+
+        self.set_additional_args(parser)
 
         if argv is None:
             argv = sys.argv
@@ -199,6 +245,12 @@ class RolloutBase(ABC):
 
         if self.args.world_random_scale is not None:
             self.args.world_random_scale = np.array(self.args.world_random_scale)
+
+        if self.args.seed < 0:
+            self.args.seed = int(time.time()) % (2**32)
+
+    def set_additional_args(self, parser):
+        pass
 
     def setup_model_meta_info(self):
         checkpoint_dir = os.path.split(self.args.checkpoint)[0]
@@ -252,8 +304,8 @@ class RolloutBase(ABC):
             cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
         )
 
-        if self.args.win_xy_policy is not None:
-            cv2.moveWindow(self.policy_name, *self.args.win_xy_policy)
+        if self.args.win_xy_plot is not None:
+            cv2.moveWindow(self.policy_name, *self.args.win_xy_plot)
         cv2.waitKey(1)
 
         if len(self.action_keys) > 0:
@@ -405,6 +457,25 @@ class RolloutBase(ABC):
             f"mean: {inference_duration_arr.mean():.2e}, std: {inference_duration_arr.std():.2e} "
             f"min: {inference_duration_arr.min():.2e}, max: {inference_duration_arr.max():.2e}"
         )
+
+    def save_rgb_image(self):
+        image = cv2.hconcat(list(self.info["rgb_images"].values()))
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        demo_name = remove_suffix(self.env.spec.name, "Env")
+        datetime_now = datetime.datetime.now()
+        image_path = os.path.abspath(
+            os.path.join(
+                self.args.output_image_dir,
+                f"Rollout_{demo_name}_{datetime_now:%Y%m%d_%H%M%S}.png",
+            )
+        )
+
+        print(
+            f"[{self.__class__.__name__}] Save the observation image of the last frame: {image_path}"
+        )
+        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+        cv2.imwrite(image_path, image)
 
     def calc_model_size(self):
         # https://discuss.pytorch.org/t/finding-model-size/130275/2

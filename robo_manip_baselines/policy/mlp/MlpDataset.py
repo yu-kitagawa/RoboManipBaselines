@@ -5,7 +5,7 @@ from robo_manip_baselines.common import (
     DataKey,
     DatasetBase,
     RmbData,
-    get_skipped_single_data,
+    get_skipped_data_seq,
 )
 
 
@@ -14,69 +14,66 @@ class MlpDataset(DatasetBase):
 
     def setup_variables(self):
         skip = self.model_meta_info["data"]["skip"]
-        self.accum_step_idxes = []
-        for filename in self.filenames:
+
+        self.chunk_info_list = []
+        for episode_idx, filename in enumerate(self.filenames):
             with RmbData(filename) as rmb_data:
                 episode_len = rmb_data[DataKey.TIME][::skip].shape[0]
-                if len(self.accum_step_idxes) == 0:
-                    self.accum_step_idxes.append(episode_len)
-                else:
-                    self.accum_step_idxes.append(
-                        self.accum_step_idxes[-1] + episode_len
-                    )
-        self.accum_step_idxes = np.array(self.accum_step_idxes)
+                for start_time_idx in range(0, episode_len):
+                    self.chunk_info_list.append((episode_idx, start_time_idx))
 
     def __len__(self):
-        return self.accum_step_idxes[-1]
+        return len(self.chunk_info_list)
 
-    def __getitem__(self, step_idx_in_whole):
-        # Set episode_idx and step_idx_in_episode
+    def __getitem__(self, chunk_idx):
         skip = self.model_meta_info["data"]["skip"]
-        episode_idx = (self.accum_step_idxes > step_idx_in_whole).nonzero()[0][0]
-        step_idx_in_episode = step_idx_in_whole
-        if episode_idx > 0:
-            step_idx_in_episode -= self.accum_step_idxes[episode_idx - 1]
+        n_obs_steps = self.model_meta_info["data"]["n_obs_steps"]
+        n_action_steps = self.model_meta_info["data"]["n_action_steps"]
+        episode_idx, start_time_idx = self.chunk_info_list[chunk_idx]
 
         with RmbData(self.filenames[episode_idx], self.enable_rmb_cache) as rmb_data:
             episode_len = rmb_data[DataKey.TIME][::skip].shape[0]
-            assert 0 <= step_idx_in_episode < episode_len
+            obs_time_idxes = np.clip(
+                np.arange(start_time_idx - n_obs_steps + 1, start_time_idx + 1),
+                0,
+                episode_len - 1,
+            )
+            action_time_idxes = np.clip(
+                np.arange(start_time_idx, start_time_idx + n_action_steps),
+                0,
+                episode_len - 1,
+            )
 
             # Load state
             if len(self.model_meta_info["state"]["keys"]) == 0:
-                state = np.zeros(0, dtype=np.float32)
+                state = np.zeros(0, dtype=np.float64)
             else:
                 state = np.concatenate(
                     [
-                        get_skipped_single_data(
-                            rmb_data[key], step_idx_in_episode * skip, key, skip
-                        )
+                        get_skipped_data_seq(rmb_data[key][:], key, skip)[
+                            obs_time_idxes
+                        ]
                         for key in self.model_meta_info["state"]["keys"]
-                    ]
+                    ],
+                    axis=1,
                 )
 
             # Load action
             action = np.concatenate(
                 [
-                    get_skipped_single_data(
-                        rmb_data[key], step_idx_in_episode * skip, key, skip
-                    )
+                    get_skipped_data_seq(rmb_data[key][:], key, skip)[action_time_idxes]
                     for key in self.model_meta_info["action"]["keys"]
-                ]
+                ],
+                axis=1,
             )
 
             # Load images
-            image_keys = [
-                DataKey.get_rgb_image_key(camera_name)
-                for camera_name in self.model_meta_info["image"]["camera_names"]
-            ]
             images = np.stack(
                 [
-                    # This allows for a common hash of cache
-                    rmb_data[key][::skip][step_idx_in_episode]
-                    if self.enable_rmb_cache
-                    # This allows for minimal loading when reading from HDF5
-                    else rmb_data[key][step_idx_in_episode * skip]
-                    for key in image_keys
+                    rmb_data[DataKey.get_rgb_image_key(camera_name)][::skip][
+                        obs_time_idxes
+                    ]
+                    for camera_name in self.model_meta_info["image"]["camera_names"]
                 ],
                 axis=0,
             )

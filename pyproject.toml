@@ -52,6 +52,13 @@ act = [
   "packaging",
   "pyquaternion",
 ]
+mt-act = [
+  "packaging",
+  "pyquaternion",
+  "lru_cache",
+  "click",
+  "sentence-transformers",
+]
 diffusion-policy = [
   "cffi",
   "zarr>=2.12.0",

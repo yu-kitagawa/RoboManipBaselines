@@ -35,18 +35,18 @@
     </body>
 
     <body name="poles" pos="-0.1 0.1 0.795">
-      <geom type="cylinder" size="0.01 0.03" pos="0.0 0.0 0.05" rgba="0.8 0.1 0.5 1.0"/>
-      <geom type="cylinder" size="0.01 0.03" pos="0.05 0.0 0.05" rgba="0.1 0.5 0.8 1.0"/>
+      <geom name="pole1" type="cylinder" size="0.01 0.03" pos="0.0 0.0 0.05" rgba="0.8 0.1 0.5 1.0"/>
+      <geom name="pole2" type="cylinder" size="0.01 0.03" pos="0.05 0.0 0.05" rgba="0.1 0.5 0.8 1.0"/>
     </body>
   </worldbody>
 
   <equality>
-    <weld name="cable_end" body1="B24" body2="cable_end" relpose="0 0 0 1 0 0 0"/>
+    <weld name="cable_end" body1="cable_B24" body2="cable_end" relpose="0 0 0 1 0 0 0"/>
   </equality>
 
   <contact>
-    <exclude body1="B0" body2="B1"/>
-    <exclude body1="B23" body2="cable_end"/>
-    <exclude body1="B24" body2="cable_end"/>
+    <exclude body1="cable_B0" body2="cable_B1"/>
+    <exclude body1="cable_B23" body2="cable_end"/>
+    <exclude body1="cable_B24" body2="cable_end"/>
   </contact>
 </mujoco>

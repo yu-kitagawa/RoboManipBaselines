@@ -49,13 +49,13 @@ class TrainDiffusionPolicy(TrainBase):
             "--n_obs_steps",
             type=int,
             default=2,
-            help="number of steps in observation to input in the policy",
+            help="number of steps in the observation sequence to input in the policy",
         )
         parser.add_argument(
             "--n_action_steps",
             type=int,
             default=8,
-            help="number of steps in the action to output from the policy",
+            help="number of steps in the action sequence to output from the policy",
         )
 
         parser.add_argument(

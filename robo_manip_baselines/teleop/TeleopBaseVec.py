@@ -98,6 +98,7 @@ class TeleopBaseVec(TeleopBase):
             ]
 
         # Reset environment
+        self.env.unwrapped.world_random_scale = self.args.world_random_scale
         self.data_manager.setup_env_world(world_idx)
         self.env.reset()
         print(
@@ -176,7 +177,7 @@ class TeleopBaseVec(TeleopBase):
                     "..",
                     "dataset",
                     f"{self.demo_name}_{self.datetime_now:%Y%m%d_%H%M%S}",
-                    f"{self.demo_name}_env{self.data_manager.world_idx:0>1}_{self.data_manager.episode_idx:0>3}_{extra_label}.{self.args.file_format}",
+                    f"{self.demo_name}_world{self.data_manager.world_idx:0>1}_{self.data_manager.episode_idx:0>3}_{extra_label}.{self.args.file_format}",
                 )
             )
             filename_list.append(filename)

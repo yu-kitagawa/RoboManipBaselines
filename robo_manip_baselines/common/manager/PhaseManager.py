@@ -44,14 +44,19 @@ class PhaseManager:
     def is_phases(self, phase_name_list):
         return any(self.is_phase(phase_name) for phase_name in phase_name_list)
 
-    def get_phase_image(self, size=(320, 50), get_color_func=lambda phase: 255):
+    def get_phase_image(
+        self,
+        size=(320, 50),
+        get_text_func=lambda phase: remove_suffix(phase.name, "Phase"),
+        get_color_func=lambda phase: 255,
+    ):
         phase_image = np.full(
             size[::-1] + (3,), get_color_func(self.phase), dtype=np.uint8
         )
 
         cv2.putText(
             phase_image,
-            remove_suffix(self.phase.name, "Phase"),
+            get_text_func(self.phase),
             (5, 35),
             cv2.FONT_HERSHEY_DUPLEX,
             0.8,

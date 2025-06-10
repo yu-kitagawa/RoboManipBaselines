@@ -44,6 +44,17 @@ $ cd third_party/act/detr
 $ pip install -e .
 ```
 
+### [MT-ACT](../robo_manip_baselines/policy/mt_act)
+Install dependent libraries including [RoboAgent](https://github.com/robopen/roboagent):
+```console
+# Go to the top directory of this repository
+$ pip install -e .[mt-act]
+
+# Go to the top directory of this repository
+$ cd third_party/roboagent/detr
+$ pip install -e .
+```
+
 ### [Diffusion policy](../robo_manip_baselines/policy/diffusion_policy)
 Install dependent libraries including [diffusion policy](https://github.com/real-stanford/diffusion_policy):
 ```console

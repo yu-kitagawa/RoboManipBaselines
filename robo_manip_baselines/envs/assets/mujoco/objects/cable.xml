@@ -1,103 +1,103 @@
 <mujoco model="cable">
-  <body name="B0">
+  <body name="cable_B0">
     <geom size="0.02 0.015 0.015" type="box" rgba="0.1 0.8 0.1 1"/>
-    <geom name="G0" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-    <body name="B1" pos="0.02 0 0">
-      <joint name="J0_1" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-      <joint name="J1_1" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-      <geom name="G1" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-      <body name="B2" pos="0.02 0 0">
-        <joint name="J0_2" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-        <joint name="J1_2" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-        <geom name="G2" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-        <body name="B3" pos="0.02 0 0">
-          <joint name="J0_3" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-          <joint name="J1_3" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-          <geom name="G3" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-          <body name="B4" pos="0.02 0 0">
-            <joint name="J0_4" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-            <joint name="J1_4" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-            <geom name="G4" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-            <body name="B5" pos="0.02 0 0">
-              <joint name="J0_5" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-              <joint name="J1_5" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-              <geom name="G5" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-              <body name="B6" pos="0.02 0 0">
-                <joint name="J0_6" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                <joint name="J1_6" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                <geom name="G6" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                <body name="B7" pos="0.02 0 0">
-                  <joint name="J0_7" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                  <joint name="J1_7" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                  <geom name="G7" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                  <body name="B8" pos="0.02 0 0">
-                    <joint name="J0_8" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                    <joint name="J1_8" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                    <geom name="G8" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                    <body name="B9" pos="0.02 0 0">
-                      <joint name="J0_9" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                      <joint name="J1_9" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                      <geom name="G9" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                      <body name="B10" pos="0.02 0 0">
-                        <joint name="J0_10" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                        <joint name="J1_10" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                        <geom name="G10" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                        <body name="B11" pos="0.02 0 0">
-                          <joint name="J0_11" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                          <joint name="J1_11" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                          <geom name="G11" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                          <body name="B12" pos="0.02 0 0">
-                            <joint name="J0_12" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                            <joint name="J1_12" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                            <geom name="G12" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                            <body name="B13" pos="0.02 0 0">
-                              <joint name="J0_13" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                              <joint name="J1_13" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                              <geom name="G13" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                              <body name="B14" pos="0.02 0 0">
-                                <joint name="J0_14" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                <joint name="J1_14" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                <geom name="G14" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                <body name="B15" pos="0.02 0 0">
-                                  <joint name="J0_15" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                  <joint name="J1_15" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                  <geom name="G15" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                  <body name="B16" pos="0.02 0 0">
-                                    <joint name="J0_16" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                    <joint name="J1_16" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                    <geom name="G16" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                    <body name="B17" pos="0.02 0 0">
-                                      <joint name="J0_17" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                      <joint name="J1_17" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                      <geom name="G17" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                      <body name="B18" pos="0.02 0 0">
-                                        <joint name="J0_18" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                        <joint name="J1_18" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                        <geom name="G18" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                        <body name="B19" pos="0.02 0 0">
-                                          <joint name="J0_19" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                          <joint name="J1_19" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                          <geom name="G19" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                          <body name="B20" pos="0.02 0 0">
-                                            <joint name="J0_20" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                            <joint name="J1_20" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                            <geom name="G20" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                            <body name="B21" pos="0.02 0 0">
-                                              <joint name="J0_21" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                              <joint name="J1_21" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                              <geom name="G21" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                              <body name="B22" pos="0.02 0 0">
-                                                <joint name="J0_22" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                                <joint name="J1_22" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                                <geom name="G22" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                                <body name="B23" pos="0.02 0 0">
-                                                  <joint name="J0_23" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                                  <joint name="J1_23" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                                  <geom name="G23" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
-                                                  <body name="B24" pos="0.02 0 0">
-                                                    <joint name="J0_24" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
-                                                    <joint name="J1_24" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
-                                                    <geom name="G24" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+    <geom name="cable_G0" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+    <body name="cable_B1" pos="0.02 0 0">
+      <joint name="cable_J0_1" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+      <joint name="cable_J1_1" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+      <geom name="cable_G1" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+      <body name="cable_B2" pos="0.02 0 0">
+        <joint name="cable_J0_2" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+        <joint name="cable_J1_2" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+        <geom name="cable_G2" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+        <body name="cable_B3" pos="0.02 0 0">
+          <joint name="cable_J0_3" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+          <joint name="cable_J1_3" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+          <geom name="cable_G3" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+          <body name="cable_B4" pos="0.02 0 0">
+            <joint name="cable_J0_4" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+            <joint name="cable_J1_4" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+            <geom name="cable_G4" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+            <body name="cable_B5" pos="0.02 0 0">
+              <joint name="cable_J0_5" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+              <joint name="cable_J1_5" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+              <geom name="cable_G5" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+              <body name="cable_B6" pos="0.02 0 0">
+                <joint name="cable_J0_6" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                <joint name="cable_J1_6" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                <geom name="cable_G6" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                <body name="cable_B7" pos="0.02 0 0">
+                  <joint name="cable_J0_7" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                  <joint name="cable_J1_7" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                  <geom name="cable_G7" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                  <body name="cable_B8" pos="0.02 0 0">
+                    <joint name="cable_J0_8" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                    <joint name="cable_J1_8" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                    <geom name="cable_G8" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                    <body name="cable_B9" pos="0.02 0 0">
+                      <joint name="cable_J0_9" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                      <joint name="cable_J1_9" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                      <geom name="cable_G9" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                      <body name="cable_B10" pos="0.02 0 0">
+                        <joint name="cable_J0_10" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                        <joint name="cable_J1_10" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                        <geom name="cable_G10" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                        <body name="cable_B11" pos="0.02 0 0">
+                          <joint name="cable_J0_11" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                          <joint name="cable_J1_11" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                          <geom name="cable_G11" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                          <body name="cable_B12" pos="0.02 0 0">
+                            <joint name="cable_J0_12" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                            <joint name="cable_J1_12" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                            <geom name="cable_G12" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                            <body name="cable_B13" pos="0.02 0 0">
+                              <joint name="cable_J0_13" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                              <joint name="cable_J1_13" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                              <geom name="cable_G13" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                              <body name="cable_B14" pos="0.02 0 0">
+                                <joint name="cable_J0_14" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                <joint name="cable_J1_14" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                <geom name="cable_G14" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                <body name="cable_B15" pos="0.02 0 0">
+                                  <joint name="cable_J0_15" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                  <joint name="cable_J1_15" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                  <geom name="cable_G15" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                  <body name="cable_B16" pos="0.02 0 0">
+                                    <joint name="cable_J0_16" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                    <joint name="cable_J1_16" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                    <geom name="cable_G16" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                    <body name="cable_B17" pos="0.02 0 0">
+                                      <joint name="cable_J0_17" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                      <joint name="cable_J1_17" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                      <geom name="cable_G17" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                      <body name="cable_B18" pos="0.02 0 0">
+                                        <joint name="cable_J0_18" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                        <joint name="cable_J1_18" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                        <geom name="cable_G18" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                        <body name="cable_B19" pos="0.02 0 0">
+                                          <joint name="cable_J0_19" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                          <joint name="cable_J1_19" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                          <geom name="cable_G19" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                          <body name="cable_B20" pos="0.02 0 0">
+                                            <joint name="cable_J0_20" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                            <joint name="cable_J1_20" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                            <geom name="cable_G20" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                            <body name="cable_B21" pos="0.02 0 0">
+                                              <joint name="cable_J0_21" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                              <joint name="cable_J1_21" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                              <geom name="cable_G21" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                              <body name="cable_B22" pos="0.02 0 0">
+                                                <joint name="cable_J0_22" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                                <joint name="cable_J1_22" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                                <geom name="cable_G22" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                                <body name="cable_B23" pos="0.02 0 0">
+                                                  <joint name="cable_J0_23" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                                  <joint name="cable_J1_23" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                                  <geom name="cable_G23" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
+                                                  <body name="cable_B24" pos="0.02 0 0">
+                                                    <joint name="cable_J0_24" pos="-0.01 0 0" axis="0 1 0" group="3" damping="0.005"/>
+                                                    <joint name="cable_J1_24" pos="-0.01 0 0" axis="0 0 1" group="3" damping="0.005"/>
+                                                    <geom name="cable_G24" size="0.01 0.0075" quat="0.707107 0 0.707107 0" type="capsule" rgba="0.8 0.8 0.2 1"/>
                                                   </body>
                                                 </body>
                                               </body>

@@ -102,17 +102,24 @@ class EndTeleopPhase(PhaseBase):
     def start(self):
         super().start()
 
-        print(
-            f"[{self.op.__class__.__name__}] Press the 's' key if the teleoperation succeeded, or the 'f' key if it failed."
-        )
+        if (not self.op.args.save_success_only) or (self.op.reward > 0.0):
+            print(
+                f"[{self.op.__class__.__name__}] Press the 's' key if the teleoperation succeeded, or the 'f' key if it failed."
+            )
+        else:
+            print(
+                f"[{self.op.__class__.__name__}] Press the 'f' key. (Data cannot be saved in success-only mode.)"
+            )
 
     def post_update(self):
-        if self.op.key == ord("s"):
+        if ((not self.op.args.save_success_only) or (self.op.reward > 0.0)) and (
+            self.op.key == ord("s")
+        ):
             self.op.save_data()
             self.op.reset_flag = True
         elif self.op.key == ord("f"):
             print(
-                f"[{self.op.__class__.__name__}] Teleoperation failed: Reset without saving"
+                f"[{self.op.__class__.__name__}] Teleoperation has failed. Reset without saving."
             )
             self.op.reset_flag = True
 
@@ -176,7 +183,9 @@ class TeleopBase(ABC):
         self.motion_manager = self.MotionManagerClass(self.env)
 
         # Setup data manager
-        self.data_manager = self.DataManagerClass(self.env, demo_name=self.demo_name)
+        self.data_manager = self.DataManagerClass(
+            self.env, demo_name=self.demo_name, task_desc=self.args.task_desc
+        )
         self.data_manager.setup_camera_info()
         self.datetime_now = datetime.datetime.now()
 
@@ -229,8 +238,12 @@ class TeleopBase(ABC):
             )
 
         parser.add_argument(
-            "--demo_name", type=str, default=None, help="demonstration name"
+            "--demo_name", type=str, default="", help="demonstration name"
         )
+        parser.add_argument(
+            "--task_desc", type=str, default="", help="task_description"
+        )
+
         parser.add_argument(
             "--file_format",
             type=str,
@@ -238,6 +251,12 @@ class TeleopBase(ABC):
             choices=["rmb", "hdf5"],
             help="file format to save ('rmb' or 'hdf5')",
         )
+        parser.add_argument(
+            "--save_success_only",
+            action="store_true",
+            help="whether to save data only when the task succeeds",
+        )
+
         parser.add_argument(
             "--input_device",
             type=str,
@@ -248,20 +267,31 @@ class TeleopBase(ABC):
         parser.add_argument(
             "--input_device_config", type=str, help="configuration file of input device"
         )
+
         parser.add_argument(
             "--sync_before_record",
             action="store_true",
             help="whether to synchronize with input device before starting record",
         )
+
         parser.add_argument(
             "--enable_3d_plot", action="store_true", help="whether to enable 3d plot"
         )
+
         parser.add_argument(
             "--world_idx_list",
             type=int,
             nargs="*",
             help="list of world indexes (if not given, loop through all world indicies)",
         )
+        parser.add_argument(
+            "--world_random_scale",
+            nargs="+",
+            type=float,
+            default=None,
+            help="random scale of simulation world (no randomness by default)",
+        )
+
         parser.add_argument(
             "--replay_log",
             type=str,
@@ -276,11 +306,17 @@ class TeleopBase(ABC):
             help="Command data keys when replaying log motion",
         )
 
-        parser.add_argument("--seed", type=int, default=42, help="random seed")
+        parser.add_argument("--seed", type=int, default=-1, help="random seed")
 
         if argv is None:
             argv = sys.argv
         self.args = parser.parse_args(argv[1:])
+
+        if self.args.world_random_scale is not None:
+            self.args.world_random_scale = np.array(self.args.world_random_scale)
+
+        if self.args.seed < 0:
+            self.args.seed = int(time.time()) % (2**32)
 
     def setup_env(self):
         raise NotImplementedError(
@@ -380,6 +416,7 @@ class TeleopBase(ABC):
                 )
 
         # Reset environment
+        self.env.unwrapped.world_random_scale = self.args.world_random_scale
         self.data_manager.setup_env_world(world_idx)
         self.env.reset()
         print(
@@ -438,6 +475,12 @@ class TeleopBase(ABC):
             )
 
     def draw_image(self):
+        def get_text_func(phase):
+            text = remove_suffix(phase.name, "Phase")
+            if self.reward > 0.0:
+                text += " (success)"
+            return text
+
         def get_color_func(phase):
             if phase.name in ("InitialTeleopPhase", "StandbyTeleopPhase"):
                 return np.array([200, 200, 255])
@@ -450,7 +493,9 @@ class TeleopBase(ABC):
             else:
                 return np.array([200, 255, 200])
 
-        phase_image = self.phase_manager.get_phase_image(get_color_func=get_color_func)
+        phase_image = self.phase_manager.get_phase_image(
+            get_text_func=get_text_func, get_color_func=get_color_func
+        )
         rgb_images = []
         depth_images = []
         for camera_name in (
@@ -540,7 +585,7 @@ class TeleopBase(ABC):
                     "..",
                     "dataset",
                     f"{self.demo_name}_{self.datetime_now:%Y%m%d_%H%M%S}",
-                    f"{self.demo_name}_env{self.data_manager.world_idx:0>1}_{self.data_manager.episode_idx:0>3}.{self.args.file_format}",
+                    f"{self.demo_name}_world{self.data_manager.world_idx:0>1}_{self.data_manager.episode_idx:0>3}.{self.args.file_format}",
                 )
             )
         self.data_manager.save_data(filename)

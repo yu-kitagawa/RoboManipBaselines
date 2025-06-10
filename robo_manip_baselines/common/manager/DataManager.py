@@ -19,11 +19,12 @@ from ..utils.MathUtils import (
 class DataManager:
     """Data manager."""
 
-    def __init__(self, env, demo_name=""):
+    def __init__(self, env, demo_name="", task_desc=""):
         self.env = env
 
         self.meta_data = {
-            "demo": demo_name,
+            "demo_name": demo_name,
+            "task_desc": task_desc,
             "version": __version__,
         }
         if self.env is not None:

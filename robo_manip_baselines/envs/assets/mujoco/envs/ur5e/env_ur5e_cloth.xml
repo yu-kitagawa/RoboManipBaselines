@@ -41,7 +41,7 @@
     </body>
 
     <body name="board" pos="0.15 -0.065 1.2" euler="0.0 0.0 -0.785398">
-      <geom type="box" size="0.06 0.18 0.008" rgba="0.8 0.8 0.2 0.4"/>
+      <geom name="board" type="box" size="0.06 0.18 0.008" rgba="0.8 0.8 0.2 0.4"/>
     </body>
   </worldbody>
 

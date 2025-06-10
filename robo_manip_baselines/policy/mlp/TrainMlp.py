@@ -35,10 +35,30 @@ class TrainMlp(TrainBase):
             default=512,
             help="Dimension of state feature",
         )
+        parser.add_argument(
+            "--n_obs_steps",
+            type=int,
+            default=1,
+            help="number of steps in the observation sequence to input in the policy",
+        )
+        parser.add_argument(
+            "--n_action_steps",
+            type=int,
+            default=1,
+            help="number of steps in the action sequence to output from the policy",
+        )
+
+    def setup_model_meta_info(self):
+        super().setup_model_meta_info()
+
+        self.model_meta_info["data"]["n_obs_steps"] = self.args.n_obs_steps
+        self.model_meta_info["data"]["n_action_steps"] = self.args.n_action_steps
 
     def setup_policy(self):
         # Set policy args
         self.model_meta_info["policy"]["args"] = {
+            "n_obs_steps": self.args.n_obs_steps,
+            "n_action_steps": self.args.n_action_steps,
             "hidden_dim_list": self.args.hidden_dim_list,
             "state_feature_dim": self.args.state_feature_dim,
         }
@@ -61,6 +81,9 @@ class TrainMlp(TrainBase):
 
         # Print policy information
         self.print_policy_info()
+        print(
+            f"  - obs steps: {self.args.n_obs_steps}, action steps: {self.args.n_action_steps}"
+        )
 
     def train_loop(self):
         for epoch in tqdm(range(self.args.num_epochs)):
@@ -70,7 +93,7 @@ class TrainMlp(TrainBase):
             for data in self.train_dataloader:
                 self.optimizer.zero_grad()
                 pred_action = self.policy(*[d.cuda() for d in data[0:2]])
-                loss = F.mse_loss(pred_action, data[2].cuda())
+                loss = F.l1_loss(pred_action, data[2].cuda())
                 loss.backward()
                 self.optimizer.step()
                 batch_result_list.append(self.detach_batch_result({"loss": loss}))
@@ -82,7 +105,7 @@ class TrainMlp(TrainBase):
                 batch_result_list = []
                 for data in self.val_dataloader:
                     pred_action = self.policy(*[d.cuda() for d in data[0:2]])
-                    loss = F.mse_loss(pred_action, data[2].cuda())
+                    loss = F.l1_loss(pred_action, data[2].cuda())
                     batch_result_list.append(self.detach_batch_result({"loss": loss}))
                 epoch_summary = self.log_epoch_summary(batch_result_list, "val", epoch)
 

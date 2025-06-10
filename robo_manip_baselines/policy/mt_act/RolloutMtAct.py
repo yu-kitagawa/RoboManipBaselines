@@ -4,16 +4,23 @@ import sys
 import cv2
 import matplotlib.pylab as plt
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../third_party/act"))
+sys.path.append(
+    os.path.join(os.path.dirname(__file__), "../../../third_party/roboagent")
+)
 from detr.models.detr_vae import DETRVAE
 from policy import ACTPolicy
 
 from robo_manip_baselines.common import RolloutBase, denormalize_data
 
 
-class RolloutAct(RolloutBase):
+class RolloutMtAct(RolloutBase):
     def set_additional_args(self, parser):
+        parser.add_argument(
+            "--task_desc", type=str, required=True, help="task description"
+        )
+
         parser.add_argument(
             "--no_temp_ensem",
             action="store_true",
@@ -45,6 +52,11 @@ class RolloutAct(RolloutBase):
         # Load checkpoint
         self.load_ckpt()
 
+        # Construct text encoder
+        self.text_encoder = SentenceTransformer(
+            "sentence-transformers/all-MiniLM-L6-v2"
+        )
+
     def setup_plot(self):
         fig_ax = plt.subplots(
             2,
@@ -64,13 +76,15 @@ class RolloutAct(RolloutBase):
 
         self.policy_action_buf = []
         self.policy_action_buf_history = []
+        self.task_text_emb_map = {}
 
     def infer_policy(self):
         # Infer
         if (not self.args.no_temp_ensem) or (len(self.policy_action_buf) == 0):
             state = self.get_state()
             images = self.get_images()
-            action = self.policy(state, images)[0]
+            task_emb = self.get_task_emb(self.args.task_desc).to(self.device)
+            action = self.policy(state, images, task_emb=task_emb)[0]
             self.policy_action_buf = list(
                 action.cpu().detach().numpy().astype(np.float64)
             )
@@ -99,6 +113,13 @@ class RolloutAct(RolloutBase):
         self.policy_action_list = np.concatenate(
             [self.policy_action_list, self.policy_action[np.newaxis]]
         )
+
+    def get_task_emb(self, task_text):
+        if task_text not in self.task_text_emb_map:
+            self.task_text_emb_map[task_text] = self.text_encoder.encode(
+                [task_text], convert_to_tensor=True, device="cpu"
+            )
+        return self.task_text_emb_map[task_text]
 
     def draw_plot(self):
         # Clear plot

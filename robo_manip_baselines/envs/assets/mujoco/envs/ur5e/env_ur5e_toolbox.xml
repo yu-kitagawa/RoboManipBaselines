@@ -31,7 +31,7 @@
     </body>
 
     <body name="toolbox" pos="0.0 -0.2 0.815" euler="0.0 0.0 1.5708">
-      <freejoint/>
+      <freejoint name="toolbox_freejoint"/>
       <geom type="box" size="0.06 0.06 0.04" pos="0.0 0.0 0.04" rgba="0.1 0.5 0.1 1.0"/>
       <geom type="box" size="0.008 0.005 0.04" pos="0.0 -0.03 0.08" rgba="0.1 0.5 0.1 1.0"/>
       <geom type="box" size="0.008 0.005 0.04" pos="0.0 0.03 0.08" rgba="0.1 0.5 0.1 1.0"/>

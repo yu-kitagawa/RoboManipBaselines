@@ -49,6 +49,24 @@ class MujocoUR5eCabinetEnv(MujocoUR5eEnvBase):
             ]
         )  # [m]
 
+        self.target_task = None  # One of [None, "hinge", "slide"]
+
+    def _get_success(self):
+        hinge_thre = 120.0  # [deg]
+        hinge_success = self.data.joint("hinge").qpos[0] > np.deg2rad(hinge_thre)
+        slide_thre = 0.12  # [m]
+        slide_success = self.data.joint("slide").qpos[0] > slide_thre
+        if self.target_task is None:
+            return hinge_success or slide_success
+        elif self.target_task == "hinge":
+            return hinge_success
+        elif self.target_task == "slide":
+            return slide_success
+        else:
+            raise ValueError(
+                f"[{self.__class__.__name__}] Invalid target task: {self.target_task}"
+            )
+
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:
             world_idx = cumulative_idx % len(self.cabinet_pos_offsets)

@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import importlib.util
 import os
 import re
 import sys
@@ -38,7 +39,7 @@ def main():
         type=str,
         nargs="?",
         default=None,
-        choices=["Mlp", "Sarnn", "Act", "DiffusionPolicy", "OpenvlaOft", "Gr00t", "Pi0"],
+        choices=["Mlp", "Sarnn", "Act", "DiffusionPolicy", "OpenvlaOft"],
         help="policy",
     )
     parser.add_argument(
