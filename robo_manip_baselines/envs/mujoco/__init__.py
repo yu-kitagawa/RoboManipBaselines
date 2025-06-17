@@ -6,6 +6,7 @@ from .ur5e.MujocoUR5eInsertEnv import MujocoUR5eInsertEnv
 from .ur5e.MujocoUR5eDoorEnv import MujocoUR5eDoorEnv
 from .ur5e.MujocoUR5eCabinetEnv import MujocoUR5eCabinetEnv
 from .ur5e.MujocoUR5eToolboxEnv import MujocoUR5eToolboxEnv
+from .ur5e.MujocoUR5ePickEnv import MujocoUR5ePickEnv
 
 from .ur5e_dual.MujocoUR5eDualCableEnv import MujocoUR5eDualCableEnv
 

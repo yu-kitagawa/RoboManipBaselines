@@ -432,6 +432,18 @@ class TileRolloutVideos:
                 :,  # channel
             ] = self.RED
 
+        # overwrite surplus tiles with white
+        total_tiles = row_num * self.column_num
+        for i_subvideo in range(len(self.task_success_list), total_tiles):
+            x_draw = (frame_w + 2 * self.border_size) * (i_subvideo % self.column_num)
+            y_draw = (frame_h + 2 * self.border_size) * (i_subvideo // self.column_num)
+            initial_frames[
+                :,
+                y_draw : y_draw + (frame_h + 2 * self.border_size),
+                x_draw : x_draw + (frame_w + 2 * self.border_size),
+                :,
+            ] = self.WHITE
+
         return initial_frames
 
     def read_video(

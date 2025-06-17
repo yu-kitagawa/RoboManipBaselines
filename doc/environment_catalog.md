@@ -12,22 +12,22 @@ $ python ./bin/Teleop.py <env_name>
 #### MujocoUR5eCable
 Task to pass the cable between two poles.
 
-https://github.com/user-attachments/assets/e01a411f-00eb-4579-b0e8-ab301f10e02b
+https://github.com/user-attachments/assets/006e7337-2cfa-41d7-80a9-18cb40c013c4
 
 #### MujocoUR5eRing
 Task to pick a ring and put it around the pole.
 
-https://github.com/user-attachments/assets/fb922a0f-e292-493a-9856-e73bbc119fc8
+https://github.com/user-attachments/assets/29c4001e-5d6e-4414-ad70-ebb7a25bf69e
 
 #### MujocoUR5eParticle
 Task to scoop up particles.
 
-https://github.com/user-attachments/assets/3dd17b4f-8781-4945-bf86-8c433c822b87
+https://github.com/user-attachments/assets/759cddeb-8089-4e44-907c-2e8405ea026c
 
 #### MujocoUR5eCloth
 Task to roll up the cloth.
 
-https://github.com/user-attachments/assets/4c78f4ff-8b77-4f2d-be7b-755a09227f5f
+https://github.com/user-attachments/assets/0b7a52d5-5ce3-49f2-b574-a78e729865cc
 
 ### Dual UR5e
 #### MujocoUR5eDualCable

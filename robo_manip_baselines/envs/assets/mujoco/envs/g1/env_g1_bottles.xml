@@ -1,15 +1,23 @@
 <mujoco model="g1_bottles">
   <include file="./env_g1_common.xml"/>
 
+  <asset>
+    <texture name="bottle" file="general/metal2.png" type="cube"/>
+    <material name="bottle1" texture="bottle" rgba="0.1 0.5 0.8 1.0" specular="1.0" shininess="1.0"/>
+    <material name="bottle2" texture="bottle" rgba="0.8 0.1 0.5 1.0" specular="1.0" shininess="1.0"/>
+  </asset>
+
   <include file="../../robots/g1/g1_config.xml"/>
 
   <worldbody>
-    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.5 0.5 0.5"/>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.3 0.3 0.3"/>
 
     <geom name="floor" size="0 0 0.05" type="plane" material="floor" pos="0 0 -0.75"/>
-    <site name="worldref" pos="0 0 -0.75"/>
 
-    <include file="../../robots/g1/g1_body.xml"/>
+    <geom name="wall1" type="box" size="10 10 0.01" pos="10 0 9" zaxis="1 0 0" material="wall"/>
+    <geom name="wall2" type="box" size="10 10 0.01" pos="-10 0 9" zaxis="1 0 0" material="wall"/>
+    <geom name="wall3" type="box" size="10 10 0.01" pos="0 10 9" zaxis="0 1 0" material="wall"/>
+    <geom name="wall4" type="box" size="10 10 0.01" pos="0 -10 9" zaxis="0 1 0" material="wall"/>
 
     <body name="table" pos="-0.45 0 0" euler="0 0 -1.5708">
       <geom mesh="tabletop" material="tabletop" class="visual" pos="0 0 -0.75" quat="1 0 0 1"/>
@@ -17,13 +25,15 @@
       <geom name="table" pos="0 0 -0.1009" size="0.61 0.37 0.1" type="box" class="collision"/>
     </body>
 
+    <include file="../../robots/g1/g1_body.xml"/>
+
     <body name="bottle1" pos="-0.7 0.1 0.01">
       <freejoint/>
-      <geom type="cylinder" size="0.03 0.07" pos="0 0 0.07" rgba="0.1 0.5 0.8 1.0"/>
+      <geom type="cylinder" size="0.03 0.07" pos="0 0 0.07" material="bottle1"/>
     </body>
     <body name="bottle2" pos="-0.7 -0.1 0.01">
       <freejoint/>
-      <geom type="cylinder" size="0.03 0.07" pos="0 0 0.07" rgba="0.8 0.1 0.5 1.0"/>
+      <geom type="cylinder" size="0.03 0.07" pos="0 0 0.07" material="bottle2"/>
     </body>
   </worldbody>
 </mujoco>

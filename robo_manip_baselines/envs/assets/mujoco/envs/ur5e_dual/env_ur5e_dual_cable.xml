@@ -1,26 +1,33 @@
 <mujoco model="ur5e_dual_cable">
   <include file="../ur5e/env_ur5e_common.xml"/>
 
+  <asset>
+    <texture name="pole" file="general/metal2.png" type="cube"/>
+    <material name="pole" texture="pole" rgba="0.8 0 0 1" specular="1.0" shininess="1.0"/>
+  </asset>
+
   <include file="../../robots/ur5e/ur5e_integrated_shared_config.xml"/>
   <include file="../../robots/ur5e/ur5e_integrated_specific_config_left.xml"/>
   <include file="../../robots/ur5e/ur5e_integrated_specific_config_right.xml"/>
 
-  <asset>
-    <texture name="table_plate2" file="table/table2.png" type="2d"/>
-    <material name="table_plate2" texture="table_plate2" specular="0.0" shininess="0.0"/>
-  </asset>
+  <include file="../../objects/cable/cable_config.xml"/>
 
   <worldbody>
-    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.5 0.5 0.5" castshadow="false"/>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.3 0.3 0.3" castshadow="false"/>
 
     <camera name="front" mode="fixed" pos="0.5 0.0 1.5" euler="0.0 0.785398 1.5708"/>
     <camera name="side" mode="fixed" pos="-0.1 -0.75 0.9" euler="1.5708 0.0 0.0"/>
 
     <geom name="floor" size="0 0 0.05" type="plane" material="floor"/>
 
+    <geom name="wall1" type="box" size="10 10 0.01" pos="10 0 10" zaxis="1 0 0" material="wall"/>
+    <geom name="wall2" type="box" size="10 10 0.01" pos="-10 0 10" zaxis="1 0 0" material="wall"/>
+    <geom name="wall3" type="box" size="10 10 0.01" pos="0 10 10" zaxis="0 1 0" material="wall"/>
+    <geom name="wall4" type="box" size="10 10 0.01" pos="0 -10 10" zaxis="0 1 0" material="wall"/>
+
     <body name="table">
       <geom type="box" size="0.275 0.5 0.4" pos="0 0 0.4" material="table_base"/>
-      <geom type="box" size="0.275 0.5 0.0075" pos="0 0 0.8075" material="table_plate2"/>
+      <geom type="box" size="0.275 0.5 0.0075" pos="0 0 0.8075" material="table_plate"/>
     </body>
 
     <body name="stand">
@@ -35,27 +42,27 @@
     </body>
 
     <body name="cable" pos="-0.175 0.2 0.8325" quat="0.707105 0 0 -0.707108">
-      <include file="../../objects/cable.xml"/>
+      <include file="../../objects/cable/cable_body.xml"/>
     </body>
 
     <body name="cable_end" pos="-0.175 -0.28 0.8325" euler="0 0 -1.5708">
       <freejoint/>
-      <geom type="box" size="0.02 0.015 0.015" pos="0.0 0.0 0.0" rgba="0.1 0.8 0.1 1.0"/>
+      <geom type="box" size="0.02 0.015 0.015" pos="0.0 0.0 0.0" material="cable_box"/>
     </body>
 
     <body name="poles" pos="-0.1 0.1 0.795">
-      <geom type="cylinder" size="0.01 0.03" pos="0.0 0.0 0.05" rgba="0.8 0.1 0.5 1.0"/>
-      <geom type="cylinder" size="0.01 0.03" pos="0.05 0.0 0.05" rgba="0.1 0.5 0.8 1.0"/>
+      <geom type="cylinder" size="0.01 0.03" pos="0.0 0.0 0.05" material="pole"/>
+      <geom type="cylinder" size="0.01 0.03" pos="0.05 0.0 0.05" material="pole"/>
     </body>
   </worldbody>
 
   <equality>
-    <weld name="cable_end" body1="B24" body2="cable_end" relpose="0 0 0 1 0 0 0"/>
+    <weld name="cable_end" body1="cable_B24" body2="cable_end" relpose="0 0 0 1 0 0 0"/>
   </equality>
 
   <contact>
-    <exclude body1="B0" body2="B1"/>
-    <exclude body1="B23" body2="cable_end"/>
-    <exclude body1="B24" body2="cable_end"/>
+    <exclude body1="cable_B0" body2="cable_B1"/>
+    <exclude body1="cable_B23" body2="cable_end"/>
+    <exclude body1="cable_B24" body2="cable_end"/>
   </contact>
 </mujoco>

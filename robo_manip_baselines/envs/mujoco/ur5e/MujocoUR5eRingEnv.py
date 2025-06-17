@@ -62,7 +62,7 @@ class MujocoUR5eRingEnv(MujocoUR5eEnvBase):
         pole_pos = self.data.body("pole").xpos.copy()
 
         # Check z position
-        z_thre = pole_pos[2] + 0.05  # [m]
+        z_thre = pole_pos[2] + 0.08  # [m]
         if ring_grid_pos_list[:, 2].max() > z_thre:
             return False
 

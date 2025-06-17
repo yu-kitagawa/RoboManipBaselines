@@ -12,6 +12,7 @@ import matplotlib.pylab as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import torch
+import yaml
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from torchvision.transforms import v2
 
@@ -46,7 +47,8 @@ class RolloutPhase(PhaseBase):
         self.op.rollout_time_idx = 0
         self.termination_time = None
         print(
-            f"[{self.op.__class__.__name__}] Start policy rollout. Press the 'n' key to finish policy rollout."
+            f"[{self.op.__class__.__name__}] Start policy rollout (world_idx: {self.op.world_idx}). "
+            "Press the 'n' key to finish policy rollout."
         )
 
     def pre_update(self):
@@ -90,18 +92,20 @@ class RolloutPhase(PhaseBase):
                     transition_flag = True
 
         if transition_flag:
-            self.op.print_statistics()
-
-            if self.op.args.save_last_image:
-                self.op.save_rgb_image()
-
-            reward_status_str = "success" if self.op.reward > 0.0 else "failure"
+            success_str = "success" if self.op.reward > 0.0 else "failure"
             print(
                 # Do not change the following print description, as it will be used
                 # to automatically obtain the task success/failure result
-                f"Rollout result: {reward_status_str}",
+                f"Rollout result: {success_str}",
                 flush=True,
             )
+
+            self.op.result["success"].append(bool(self.op.reward > 0.0))
+            self.op.result["reward"].append(self.op.reward)
+            self.op.result["duration"].append(elapsed_duration)
+
+            if self.op.args.save_last_image:
+                self.op.save_rgb_image()
 
             return True
         else:
@@ -117,7 +121,11 @@ class EndRolloutPhase(PhaseBase):
 
     def check_transition(self):
         if (self.op.key == ord("n")) or self.op.args.auto_exit:
-            self.op.quit_flag = True
+            self.op.episode_idx += 1
+            if self.op.episode_idx == len(self.op.args.world_idx_list):
+                self.op.quit_flag = True
+            else:
+                self.op.reset_flag = True
 
         return False
 
@@ -138,12 +146,8 @@ class RolloutBase(ABC):
         if not self.args.no_plot:
             self.setup_plot()
 
-        self.setup_variables()
-
-        # Setup motion manager
         self.motion_manager = MotionManager(self.env)
 
-        # Setup phase manager
         phase_order = [
             InitialRolloutPhase(self),
             *self.get_pre_motion_phases(),
@@ -152,9 +156,7 @@ class RolloutBase(ABC):
         ]
         self.phase_manager = PhaseManager(phase_order)
 
-        # Setup environment
-        self.env.unwrapped.world_random_scale = self.args.world_random_scale
-        self.env.unwrapped.modify_world(world_idx=self.args.world_idx)
+        self.setup_variables()
 
     def setup_args(self, parser=None, argv=None):
         if parser is None:
@@ -170,7 +172,14 @@ class RolloutBase(ABC):
             "--world_idx",
             type=int,
             default=0,
-            help="index of the simulation world (0-5)",
+            help="world index (if '--world_idx_list' option is specified, it takes precedence)",
+        )
+        parser.add_argument(
+            "--world_idx_list",
+            type=int,
+            nargs="*",
+            default=None,
+            help="list of world indexes",
         )
         parser.add_argument(
             "--world_random_scale",
@@ -222,7 +231,17 @@ class RolloutBase(ABC):
             "--max_duration",
             type=float,
             default=30.0,
-            help="maximum rollout duration for automatic exit [s]",
+            help=(
+                "maximum rollout duration for automatic exit [s] "
+                "(used only when '--auto_exit' option is enabled)"
+            ),
+        )
+
+        parser.add_argument(
+            "--result_filename",
+            type=str,
+            default=None,
+            help="File path (*.yaml) to save rollout results (default: do not save)",
         )
 
         parser.add_argument(
@@ -234,7 +253,10 @@ class RolloutBase(ABC):
             "--output_image_dir",
             type=str,
             default=".",
-            help="directory to save the output image (default: current directory)",
+            help=(
+                "directory to save the output image (default: current directory, "
+                "used only when '--output_image_dir' option is enabled)."
+            ),
         )
 
         self.set_additional_args(parser)
@@ -242,6 +264,9 @@ class RolloutBase(ABC):
         if argv is None:
             argv = sys.argv
         self.args = parser.parse_args(argv[1:])
+
+        if self.args.world_idx_list is None:
+            self.args.world_idx_list = [self.args.world_idx]
 
         if self.args.world_random_scale is not None:
             self.args.world_random_scale = np.array(self.args.world_random_scale)
@@ -317,6 +342,13 @@ class RolloutBase(ABC):
 
     def setup_variables(self):
         self.image_transforms = v2.ToDtype(torch.float32, scale=True)
+
+        self.episode_idx = 0
+        self.datetime_now = datetime.datetime.now()
+
+        self.result = {key: [] for key in ("success", "reward", "duration")}
+
+    def reset_variables(self):
         self.policy_action_list = np.empty((0, self.action_dim))
 
     def get_pre_motion_phases(self):
@@ -344,14 +376,15 @@ class RolloutBase(ABC):
         self.policy.eval()
 
     def run(self):
+        self.reset_flag = True
         self.quit_flag = False
         self.inference_duration_list = []
 
-        self.motion_manager.reset()
-
-        self.obs, self.info = self.env.reset(seed=self.args.seed)
-
         while True:
+            if self.reset_flag:
+                self.reset()
+                self.reset_flag = False
+
             self.phase_manager.pre_update()
 
             env_action = np.concatenate(
@@ -374,7 +407,47 @@ class RolloutBase(ABC):
             if self.quit_flag:
                 break
 
+        if self.args.result_filename is not None:
+            print(
+                f"[{self.__class__.__name__}] Save the rollout results: {self.args.result_filename}"
+            )
+            with open(self.args.result_filename, "w") as result_file:
+                yaml.dump(self.result, result_file)
+
+        self.print_statistics()
+
         # self.env.close()
+
+    def reset(self):
+        # Reset plot
+        if not self.args.no_plot:
+            for _ax in np.ravel(self.ax):
+                _ax.cla()
+                _ax.axis("off")
+
+            self.canvas = FigureCanvasAgg(self.fig)
+            self.canvas.draw()
+            cv2.imshow(
+                self.policy_name,
+                cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
+            )
+
+        # Reset motion manager
+        self.motion_manager.reset()
+
+        # Reset environment
+        self.env.unwrapped.world_random_scale = self.args.world_random_scale
+        world_idx = self.args.world_idx_list[
+            self.episode_idx % len(self.args.world_idx_list)
+        ]
+        self.world_idx = self.env.unwrapped.modify_world(world_idx=world_idx)
+        self.obs, self.info = self.env.reset(seed=self.args.seed)
+
+        # Reset phase manager
+        self.phase_manager.reset()
+
+        # Reset variables
+        self.reset_variables()
 
     @abstractmethod
     def infer_policy(self):
@@ -463,11 +536,14 @@ class RolloutBase(ABC):
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         demo_name = remove_suffix(self.env.spec.name, "Env")
-        datetime_now = datetime.datetime.now()
+        success_str = "success" if self.reward > 0.0 else "failure"
         image_path = os.path.abspath(
             os.path.join(
                 self.args.output_image_dir,
-                f"Rollout_{demo_name}_{datetime_now:%Y%m%d_%H%M%S}.png",
+                (
+                    f"Rollout{self.policy_name}_{demo_name}_world{self.world_idx:0>1}_"
+                    f"{success_str}_{self.datetime_now:%Y%m%d_%H%M%S}.png"
+                ),
             )
         )
 

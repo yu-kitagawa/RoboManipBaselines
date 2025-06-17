@@ -2,6 +2,7 @@
   <compiler meshdir="../../assets/meshes" texturedir="../../assets/textures"/>
   <option timestep="0.002" integrator="implicitfast"/>
   <size memory="2M"/>
+  <statistic extent="2.0"/>
 
   <visual>
     <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0.0 0.0 0.0"/>
@@ -12,8 +13,10 @@
 
   <asset>
     <texture type="skybox" builtin="gradient" rgb1="0.9 1.0 1.0" rgb2="0.9 1.0 1.0" width="512" height="3072"/>
-    <texture name="floor" type="2d" builtin="checker" rgb1="0.6 0.6 0.5" rgb2="0.7 0.7 0.6" width="300" height="300"/>
-    <material name="floor" texture="floor" texuniform="true" texrepeat="5 5"/>
+    <texture name="floor" file="floor/floor1.png" type="2d"/>
+    <material name="floor" texture="floor" specular="0.2" shininess="0.3"/>
+    <texture name="wall" file="wall/wall1.png" type="cube"/>
+    <material name="wall" texture="wall" specular="0.2" shininess="0.3"/>
     <mesh file="aloha/tabletop.obj"/>
     <mesh file="aloha/tablelegs.obj"/>
     <texture type="2d" file="aloha/small_meta_table_diffuse.png"/>

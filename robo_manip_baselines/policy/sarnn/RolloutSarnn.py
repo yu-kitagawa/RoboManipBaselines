@@ -51,8 +51,8 @@ class RolloutSarnn(RolloutBase):
             [DataKey.get_plot_scale(key, self.env) for key in self.state_keys]
         )
 
-    def setup_variables(self):
-        super().setup_variables()
+    def reset_variables(self):
+        super().reset_variables()
 
         self.lstm_state = None
 

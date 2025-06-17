@@ -38,8 +38,8 @@ class RolloutMlp(RolloutBase):
         )
         super().setup_plot(fig_ax)
 
-    def setup_variables(self):
-        super().setup_variables()
+    def reset_variables(self):
+        super().reset_variables()
 
         self.state_buf = None
         self.images_buf = None

@@ -34,6 +34,10 @@ register(
     id="robo_manip_baselines/MujocoUR5eToolboxEnv-v0",
     entry_point="robo_manip_baselines.envs.mujoco:MujocoUR5eToolboxEnv",
 )
+register(
+    id="robo_manip_baselines/MujocoUR5ePickEnv-v0",
+    entry_point="robo_manip_baselines.envs.mujoco:MujocoUR5ePickEnv",
+)
 
 ## UR5e-Dual
 register(

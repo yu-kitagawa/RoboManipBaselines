@@ -1,0 +1,95 @@
+<mujoco model="ur5e_pick">
+  <include file="./env_ur5e_common.xml"/>
+
+  <option timestep="0.002" integrator="implicitfast"/>
+  <!-- <option timestep="0.002" solver="PGS" iterations="50" integrator="RK4"/> -->
+  <size memory="1G"/>
+
+  <include file="../../robots/ur5e/ur5e_integrated_shared_config.xml"/>
+  <include file="../../robots/ur5e/ur5e_integrated_specific_config.xml"/>
+
+  <include file="../../../../../../third_party/YCB_sim/includes/defaults_ycb.xml"/>
+  <include file="../../../../../../third_party/YCB_sim/includes/assets_003_cracker_box.xml"/>
+  <include file="../../../../../../third_party/YCB_sim/includes/assets_008_pudding_box.xml"/>
+  <include file="../../../../../../third_party/YCB_sim/includes/assets_010_potted_meat_can.xml"/>
+
+  <include file="../../mujoco_scanned_objects/Threshold_Porcelain_Spoon_Rest_White/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/Shurtape_Tape_Purple_CP28/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/Beta_Glucan/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/Twinlab_Nitric_Fuel/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/45oz_RAMEKIN_ASST_DEEP_COLORS/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/ACE_Coffee_Mug_Kristen_16_oz_cup/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/Target_Basket_Medium/model_config.xml" />
+  <include file="../../mujoco_scanned_objects/Curver_Storage_Bin_Black_Small/model_config.xml" />
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.3 0.3 0.3"/>
+
+    <camera name="front" mode="fixed" pos="0.5 0.0 1.5" euler="0.0 0.785398 1.5708"/>
+    <camera name="side" mode="fixed" pos="-0.1 -0.75 0.9" euler="1.5708 0.0 0.0"/>
+
+    <geom name="floor" size="0 0 0.05" type="plane" material="floor"/>
+
+    <geom name="wall1" type="box" size="10 10 0.01" pos="10 0 10" zaxis="1 0 0" material="wall"/>
+    <geom name="wall2" type="box" size="10 10 0.01" pos="-10 0 10" zaxis="1 0 0" material="wall"/>
+    <geom name="wall3" type="box" size="10 10 0.01" pos="0 10 10" zaxis="0 1 0" material="wall"/>
+    <geom name="wall4" type="box" size="10 10 0.01" pos="0 -10 10" zaxis="0 1 0" material="wall"/>
+
+    <body name="table">
+      <geom type="box" size="0.275 0.5 0.4" pos="0 0 0.4" material="table_base"/>
+      <geom type="box" size="0.275 0.5 0.0075" pos="0 0 0.8075" material="table_plate"/>
+    </body>
+
+    <body name="stand">
+      <geom type="box" size="0.33 0.33 0.4" pos="-0.605 0 0.4" material="stand"/>
+    </body>
+
+    <body name="ur5e_root_frame" pos="-0.605 0.0 0.8">
+      <include file="../../robots/ur5e/ur5e_integrated_body.xml"/>
+    </body>
+
+    <body pos="-0.15 -0.30 0.82" euler="0 0 0.785398">
+      <freejoint/>
+      <include file="../../mujoco_scanned_objects/Threshold_Porcelain_Spoon_Rest_White/model_body.xml" />
+    </body>
+    <body pos="0.0 -0.30 0.82" euler="0 0 -0.785398">
+      <freejoint/>
+      <include file="../../../../../../third_party/YCB_sim/includes/body_003_cracker_box.xml" />
+    </body>
+    <body pos="0.15 -0.30 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../mujoco_scanned_objects/Shurtape_Tape_Purple_CP28/model_body.xml" />
+    </body>
+    <body pos="-0.15 -0.15 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../mujoco_scanned_objects/Beta_Glucan/model_body.xml" />
+    </body>
+    <body pos="0.0 -0.15 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../mujoco_scanned_objects/Twinlab_Nitric_Fuel/model_body.xml" />
+    </body>
+    <body pos="0.15 -0.15 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../mujoco_scanned_objects/45oz_RAMEKIN_ASST_DEEP_COLORS/model_body.xml" />
+    </body>
+    <body pos="-0.15 0.0 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../../../../../third_party/YCB_sim/includes/body_008_pudding_box.xml" />
+    </body>
+    <body pos="0.0 0.0 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../mujoco_scanned_objects/ACE_Coffee_Mug_Kristen_16_oz_cup/model_body.xml" />
+    </body>
+    <body pos="0.15 0.0 0.82" euler="0 0 0">
+      <freejoint/>
+      <include file="../../../../../../third_party/YCB_sim/includes/body_010_potted_meat_can.xml" />
+    </body>
+
+    <body pos="-0.13 0.3 0.81" euler="0 0 0">
+      <include file="../../mujoco_scanned_objects/Target_Basket_Medium/model_body.xml" />
+    </body>
+    <body pos="0.13 0.3 0.81" euler="0 0 1.5708">
+      <include file="../../mujoco_scanned_objects/Curver_Storage_Bin_Black_Small/model_body.xml" />
+    </body>
+  </worldbody>
+</mujoco>

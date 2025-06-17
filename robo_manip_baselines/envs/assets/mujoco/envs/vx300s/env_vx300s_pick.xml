@@ -18,10 +18,14 @@
   <!-- <include file="../../../../../../third_party/YCB_sim/includes/assets_035_power_drill.xml"/> -->
 
   <worldbody>
-    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.5 0.5 0.5"/>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.3 0.3 0.3"/>
 
     <geom name="floor" size="0 0 0.05" type="plane" material="floor" pos="0 0 -0.75"/>
-    <site name="worldref" pos="0 0 -0.75"/>
+
+    <geom name="wall1" type="box" size="10 10 0.01" pos="10 0 10" zaxis="1 0 0" material="wall"/>
+    <geom name="wall2" type="box" size="10 10 0.01" pos="-10 0 10" zaxis="1 0 0" material="wall"/>
+    <geom name="wall3" type="box" size="10 10 0.01" pos="0 10 10" zaxis="0 1 0" material="wall"/>
+    <geom name="wall4" type="box" size="10 10 0.01" pos="0 -10 10" zaxis="0 1 0" material="wall"/>
 
     <body euler="0 0 -1.5708">
       <include file="../../robots/vx300s/vx300s_body.xml"/>
