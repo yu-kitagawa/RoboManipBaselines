@@ -82,7 +82,7 @@ class RolloutGr00t(RolloutBase):
             cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR)
         )
 
-        if self.args.win_xy_policy is not None:
+        if self.args.win_xy_plot is not None:
             plt.get_current_fig_manager().window.wm_geometry("+20+50")
 
         if len(self.action_keys) > 0:

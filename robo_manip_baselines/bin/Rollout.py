@@ -39,7 +39,7 @@ def main():
         type=str,
         nargs="?",
         default=None,
-        choices=["Mlp", "Sarnn", "Act", "DiffusionPolicy", "OpenvlaOft"],
+        choices=["Mlp", "Sarnn", "Act", "DiffusionPolicy", "OpenvlaOft", "Gr00t", "Pi0"],
         help="policy",
     )
     parser.add_argument(
