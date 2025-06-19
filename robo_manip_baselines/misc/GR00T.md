@@ -24,7 +24,7 @@ $ pip install --no-build-isolation flash-attn==2.7.1.post4
 3. **Env to rollout**
 Install [GR00T](https://github.com/yu-kitagawa/Isaac-GR00T) as in 2.
 
-Install [MultimodalRobotModel](https://github.com/isri-aist/MultimodalRobotModel) according to [here](../../README.md#Install).
+Install [RoboManipBaselines](https://github.com/isri-aist/RoboManipBaselines) according to [here](../../README.md#Install).
 
 ## Dataset preparation
 

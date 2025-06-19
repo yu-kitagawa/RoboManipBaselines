@@ -15,7 +15,7 @@ $ pip install transformers pytest tensorboard
 2. **Env to rollout**
 Install [lerobot](https://github.com/yu-kitagawa/lerobot) as in 2.
 
-Install [MultimodalRobotModel](https://github.com/isri-aist/MultimodalRobotModel) according to [here](../../README.md#Install).
+Install [RoboManipBaselines](https://github.com/isri-aist/RoboManipBaselines) according to [here](../../README.md#Install).
 
 ## Dataset preparation
 

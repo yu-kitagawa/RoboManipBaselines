@@ -30,7 +30,7 @@ $ pip install "flash-attn==2.5.5" --no-build-isolation
 3. **Env to rollout**
 Install [OpenVLA-OFT](https://github.com/yu-kitagawa/openvla) as in 2.
 
-Install [MultimodalRobotModel](https://github.com/isri-aist/MultimodalRobotModel) according to [here](../../README.md#Install).
+Install [RoboManipBaselines](https://github.com/isri-aist/RoboManipBaselines) according to [here](../../README.md#Install).
 
 ## Dataset preparation
 
