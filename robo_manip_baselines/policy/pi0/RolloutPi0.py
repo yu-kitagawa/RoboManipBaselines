@@ -78,9 +78,6 @@ class RolloutPi0(RolloutBase):
         else:
             self.action_plot_scale = np.zeros(0)
 
-    def setup_variables(self):
-        super().setup_variables()
-
     def infer_policy(self):
         # Infer
 
@@ -163,6 +160,7 @@ class RolloutPi0(RolloutBase):
         )
 
     def run(self):
+        self.reset_flag = True
         self.quit_flag = False
         self.inference_duration_list = []
 
@@ -174,6 +172,10 @@ class RolloutPi0(RolloutBase):
         self.key = 0
 
         while True:
+            if self.reset_flag:
+                self.reset()
+                self.reset_flag = False
+
             self.phase_manager.pre_update()
 
             env_action = np.concatenate(

@@ -121,8 +121,8 @@ class RolloutOpenvlaOft(RolloutBase):
         )
         super().setup_plot(fig_ax)
 
-    def setup_variables(self):
-        super().setup_variables()
+    def reset_variables(self):
+        super().reset_variables()
         if "aloha" in self.cmd_args:
             self.policy_action_list = np.empty((0, 14))
 
