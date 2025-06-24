@@ -150,6 +150,9 @@ class RolloutBase(ABC):
         if not self.args.no_plot:
             self.setup_plot()
 
+        if self.args.camera_names is None:
+            self.args.camera_names = self.env.unwrapped.camera_names
+
         self.motion_manager = MotionManager(self.env)
 
         phase_order = [
@@ -267,6 +270,8 @@ class RolloutBase(ABC):
             parser.add_argument(
                 "--task_desc", type=str, required=True, help="task description"
             )
+
+        parser.add_argument("--camera_names", type=str, nargs="*", default=None, help="camera names")
 
         self.set_additional_args(parser)
 
