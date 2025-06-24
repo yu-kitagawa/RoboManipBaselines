@@ -47,9 +47,11 @@ class RolloutPhase(PhaseBase):
         self.op.rollout_time_idx = 0
         self.termination_time = None
         print(
-            f"[{self.op.__class__.__name__}] Start policy rollout (world_idx: {self.op.world_idx}). "
-            "Press the 'n' key to finish policy rollout."
+            f"[{self.op.__class__.__name__}] Start policy rollout. Press the 'n' key to finish policy rollout."
         )
+        print(f"  - world idx: {self.op.world_idx}")
+        if self.op.require_task_desc:
+            print(f"  - task desc: {self.op.args.task_desc}")
 
     def pre_update(self):
         if self.op.rollout_time_idx % self.op.args.skip == 0:
@@ -131,6 +133,8 @@ class EndRolloutPhase(PhaseBase):
 
 
 class RolloutBase(ABC):
+    require_task_desc = False
+
     def __init__(self):
         self.setup_args()
 
@@ -258,6 +262,11 @@ class RolloutBase(ABC):
                 "used only when '--output_image_dir' option is enabled)."
             ),
         )
+
+        if self.require_task_desc:
+            parser.add_argument(
+                "--task_desc", type=str, required=True, help="task description"
+            )
 
         self.set_additional_args(parser)
 

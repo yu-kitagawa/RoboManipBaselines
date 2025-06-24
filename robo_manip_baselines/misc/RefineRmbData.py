@@ -38,18 +38,23 @@ class RefineRmbData:
             hdf5_list.append(path)
         elif os.path.isdir(path):
             rmb_dirs = glob.glob(os.path.join(path, "**", "*.rmb"), recursive=True)
-            if not rmb_dirs:
-                raise ValueError(
-                    f"[{self.__class__.__name__}] No '*.rmb' directories found under the given "
-                    f"path: {path}"
+            if rmb_dirs:
+                for rmb in rmb_dirs:
+                    hdf5_path = os.path.join(rmb, "main.rmb.hdf5")
+                    if not os.path.exists(hdf5_path):
+                        raise FileNotFoundError(
+                            f"[{self.__class__.__name__}] HDF5 file not found: {hdf5_path}"
+                        )
+                    hdf5_list.append(hdf5_path)
+            else:
+                hdf5_files = glob.glob(
+                    os.path.join(path, "**", "*.hdf5"), recursive=True
                 )
-            for rmb in rmb_dirs:
-                hdf5_path = os.path.join(rmb, "main.rmb.hdf5")
-                if not os.path.exists(hdf5_path):
-                    raise FileNotFoundError(
-                        f"[{self.__class__.__name__}] HDF5 file not found: {hdf5_path}"
+                if not hdf5_files:
+                    raise ValueError(
+                        f"[{self.__class__.__name__}] No '*.rmb' directories or '.hdf5' files found under the given path: {path}"
                     )
-                hdf5_list.append(hdf5_path)
+                hdf5_list.extend(hdf5_files)
         else:
             raise ValueError(
                 f"[{self.__class__.__name__}] Unsupported file extension: {path}"

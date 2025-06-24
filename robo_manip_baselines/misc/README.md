@@ -25,6 +25,27 @@ Note that when converting images to mp4 files, lossy compression is applied to c
 $ python ./CompareRmbData.py <rmb_file1> <rmb_file2>
 ```
 
+### Refine demonstration data
+Update the task description attribute in RMB format files. It accepts a path to a file or directory and automatically searches for relevant files. If the task description attribute exists and `--overwrite` is not specified, the value is not changed.
+
+```console
+$ python ./RefineRmbData.py <path_to_data> --task_desc "<new_description>" [--overwrite]
+```
+
+## Visualization utilities
+### Visualize camera images
+Display the web camera image for recording the experiments.
+```console
+$ python ./DisplayCameraImage.py --camera_name Webcam --resize_width 800 --win_xy 1000 400
+```
+
+Display the cropped camera image. This is useful for image cropping policies such as SARNN.
+```console
+$ python ./DisplayCameraImage.py --camera_name RealSense --crop_size 280 280
+```
+
+A camera can also be specified by `--camera_id` instead of `--camera_name`.
+
 ## Video utilities
 ### Tile rollout videos
 The input is a video consisting of a sequence of multiple rollouts, and the output is a tiled video of each rollout.

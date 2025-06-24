@@ -138,6 +138,12 @@ class DataManager:
                         h5file.create_dataset(key, data=np.array(all_data_seq[key]))
 
                 concurrent.futures.wait(tasks)
+                for task in tasks:
+                    err = task.exception()
+                    if err is not None:
+                        print(
+                            f"[{self.__class__.__name__}] Failed to save images: {err}"
+                        )
 
             for key in meta_data.keys():
                 h5file.attrs[key] = meta_data[key]

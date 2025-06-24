@@ -47,12 +47,16 @@ class RolloutMlp(RolloutBase):
 
     def get_state(self):
         # Get latest value
-        state = np.concatenate(
-            [
-                self.motion_manager.get_data(state_key, self.obs)
-                for state_key in self.state_keys
-            ]
-        )
+        if len(self.state_keys) == 0:
+            state = np.zeros(0, dtype=np.float32)
+        else:
+            state = np.concatenate(
+                [
+                    self.motion_manager.get_data(state_key, self.obs)
+                    for state_key in self.state_keys
+                ]
+            )
+
         state = normalize_data(state, self.model_meta_info["state"])
         state = torch.tensor(state, dtype=torch.float32)
 

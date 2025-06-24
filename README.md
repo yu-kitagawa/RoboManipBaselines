@@ -45,6 +45,7 @@ We provide several powerful policy architectures for manipulation tasks:
 
 - 📂 [Dataset List](./doc/dataset_list.md): Pre-collected expert demonstration datasets  
 - 🧠 [Learned Parameters](./doc/learned_parameters.md): Trained model checkpoints and configs
+- 📄 [Data Format](./doc/rmb_data_format.md): Description of the custom RMB data format used in RoboManipBaselines
 
 ---
 
@@ -61,6 +62,7 @@ Explore diverse manipulation environments:
 
 - 📚 [Environment Catalog](./doc/environment_catalog.md) – Overview of all task environments  
 - 🔧 [Env Setup](./robo_manip_baselines/envs) – Installation guides per environment
+- ✏️ [How to Add a New Environment](./doc/how_to_add_env.md) – Guide for adding a custom environment
 
 ---
 

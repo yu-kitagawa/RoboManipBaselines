@@ -16,11 +16,9 @@ from robo_manip_baselines.common import RolloutBase, denormalize_data
 
 
 class RolloutMtAct(RolloutBase):
-    def set_additional_args(self, parser):
-        parser.add_argument(
-            "--task_desc", type=str, required=True, help="task description"
-        )
+    require_task_desc = True
 
+    def set_additional_args(self, parser):
         parser.add_argument(
             "--no_temp_ensem",
             action="store_true",
