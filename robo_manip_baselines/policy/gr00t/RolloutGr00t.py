@@ -108,6 +108,10 @@ class RolloutGr00t(RolloutBase):
             data_config = DATA_CONFIG_MAP["ur5e"]
             self.state_dim = 7
             self.action_dim = 7
+        else:
+            data_config = DATA_CONFIG_MAP["ur5e"]
+            self.state_dim = 7
+            self.action_dim = 7
         self.state_keys = ["measured_joint_pos"]
         self.action_keys = ["command_joint_pos"]
         self.camera_names = [s.replace("video.", "").replace("_rgb", "") for s in data_config.video_keys]

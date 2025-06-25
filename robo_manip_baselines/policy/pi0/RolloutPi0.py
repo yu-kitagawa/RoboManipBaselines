@@ -93,6 +93,10 @@ class RolloutPi0(RolloutBase):
             self.camera_names = ["front", "side", "hand"]
             self.state_dim = 7
             self.action_dim = 7
+        else:
+            self.camera_names = ["front", "side", "hand"]
+            self.state_dim = 7
+            self.action_dim = 7
 
         if self.args.skip is None:
             self.args.skip = 1
