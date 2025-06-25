@@ -43,15 +43,18 @@ class MujocoUR5eToolboxEnv(MujocoUR5eEnvBase):
             ]
         )  # [m]
 
-    def _get_success(self):
+    def _get_reward(self):
         toolbox_pos = self.data.body("toolbox").xpos.copy()
         mat_pos = self.data.body("mat").xpos.copy()
 
         xy_thre = 0.03  # [m]
         z_thre = mat_pos[2] + 0.005  # [m]
-        return (np.max(np.abs(toolbox_pos[:2] - mat_pos[:2])) < xy_thre) and (
+        if (np.max(np.abs(toolbox_pos[:2] - mat_pos[:2])) < xy_thre) and (
             toolbox_pos[2] < z_thre
-        )
+        ):
+            return 1.0
+        else:
+            return 0.0
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:

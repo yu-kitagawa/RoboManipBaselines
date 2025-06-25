@@ -46,7 +46,7 @@
         <joint name="door" axis="0 0 1" range="-3.1415 0.0" armature="1e-5"/>
         <geom type="box" size="0.145 0.09 0.005" pos="0.0 -0.1 0.0" zaxis="1 0 0" material="door_board"/>
         <geom type="cylinder" size="0.005 0.02" pos="-0.02 -0.17 0.0" euler="0.0 1.5708 0.0" material="door_handle"/>
-        <geom type="cylinder" size="0.0075 0.03" pos="-0.035 -0.145 0.0" euler="1.5708 0.0 0.0" material="door_handle"/>
+        <geom name="door_handle" type="cylinder" size="0.0075 0.03" pos="-0.035 -0.145 0.0" euler="1.5708 0.0 0.0" material="door_handle"/>
       </body>
     </body>
   </worldbody>

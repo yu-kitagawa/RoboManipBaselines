@@ -44,7 +44,7 @@ class MujocoUR5eClothEnv(MujocoUR5eEnvBase):
             ]
         )  # [m]
 
-    def _get_success(self):
+    def _get_reward(self):
         # Get grid position list of cloth
         cloth_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "cloth")
         cloth_grid_pos_list = []
@@ -78,9 +78,12 @@ class MujocoUR5eClothEnv(MujocoUR5eEnvBase):
         # Check position
         x_thre = board_world_vertices[:, 0].min() - 0.001  # [m]
         z_thre = board_world_vertices[:, 2].min() - 0.092  # [m]
-        return (cloth_grid_pos_list[:, 0].min() > x_thre) and (
+        if (cloth_grid_pos_list[:, 0].min() > x_thre) and (
             cloth_grid_pos_list[:, 2].min() > z_thre
-        )
+        ):
+            return 1.0
+        else:
+            return 0.0
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:

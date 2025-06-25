@@ -94,7 +94,7 @@ class RolloutPhase(PhaseBase):
                     transition_flag = True
 
         if transition_flag:
-            success_str = "success" if self.op.reward > 0.0 else "failure"
+            success_str = "success" if self.op.reward >= 1.0 else "failure"
             print(
                 # Do not change the following print description, as it will be used
                 # to automatically obtain the task success/failure result
@@ -102,7 +102,7 @@ class RolloutPhase(PhaseBase):
                 flush=True,
             )
 
-            self.op.result["success"].append(bool(self.op.reward > 0.0))
+            self.op.result["success"].append(bool(self.op.reward >= 1.0))
             self.op.result["reward"].append(self.op.reward)
             self.op.result["duration"].append(elapsed_duration)
 
@@ -550,7 +550,7 @@ class RolloutBase(ABC):
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         demo_name = remove_suffix(self.env.spec.name, "Env")
-        success_str = "success" if self.reward > 0.0 else "failure"
+        success_str = "success" if self.reward >= 1.0 else "failure"
         image_path = os.path.abspath(
             os.path.join(
                 self.args.output_image_dir,

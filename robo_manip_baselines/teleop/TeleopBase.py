@@ -104,7 +104,7 @@ class EndTeleopPhase(PhaseBase):
     def start(self):
         super().start()
 
-        if (not self.op.args.save_success_only) or (self.op.reward > 0.0):
+        if (not self.op.args.save_success_only) or (self.op.reward >= 1.0):
             print(
                 f"[{self.op.__class__.__name__}] Press the 's' key if the teleoperation succeeded, or the 'f' key if it failed."
             )
@@ -114,7 +114,7 @@ class EndTeleopPhase(PhaseBase):
             )
 
     def post_update(self):
-        if ((not self.op.args.save_success_only) or (self.op.reward > 0.0)) and (
+        if ((not self.op.args.save_success_only) or (self.op.reward >= 1.0)) and (
             self.op.key == ord("s")
         ):
             self.op.save_data()
@@ -531,7 +531,7 @@ class TeleopBase(ABC):
     def draw_image(self):
         def get_text_func(phase):
             text = remove_suffix(phase.name, "Phase")
-            if self.reward > 0.0:
+            if self.reward >= 1.0:
                 text += " (success)"
             return text
 

@@ -50,7 +50,7 @@ class MujocoUR5eParticleEnv(MujocoUR5eEnvBase):
         else:
             return super().get_input_device_kwargs(input_device_name)
 
-    def _get_success(self):
+    def _get_reward(self):
         # Get particle position list
         particle_body_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_BODY, "particle"
@@ -70,7 +70,10 @@ class MujocoUR5eParticleEnv(MujocoUR5eEnvBase):
             for particle_pos in particle_pos_list
         )
         count_thre = 3
-        return count >= count_thre
+        if count >= count_thre:
+            return 1.0
+        else:
+            return 0.0
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:

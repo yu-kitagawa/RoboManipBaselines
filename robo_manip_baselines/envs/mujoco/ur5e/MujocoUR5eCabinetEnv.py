@@ -51,17 +51,17 @@ class MujocoUR5eCabinetEnv(MujocoUR5eEnvBase):
 
         self.target_task = None  # One of [None, "hinge", "slide"]
 
-    def _get_success(self):
+    def _get_reward(self):
         hinge_thre = 120.0  # [deg]
         hinge_success = self.data.joint("hinge").qpos[0] > np.deg2rad(hinge_thre)
         slide_thre = 0.12  # [m]
         slide_success = self.data.joint("slide").qpos[0] > slide_thre
         if self.target_task is None:
-            return hinge_success or slide_success
+            return 1.0 if hinge_success or slide_success else 0.0
         elif self.target_task == "hinge":
-            return hinge_success
+            return 1.0 if hinge_success else 0.0
         elif self.target_task == "slide":
-            return slide_success
+            return 1.0 if slide_success else 0.0
         else:
             raise ValueError(
                 f"[{self.__class__.__name__}] Invalid target task: {self.target_task}"

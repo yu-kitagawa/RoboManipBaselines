@@ -46,7 +46,7 @@ class MujocoUR5eRingEnv(MujocoUR5eEnvBase):
 
         self.ring_body_ids = None
 
-    def _get_success(self):
+    def _get_reward(self):
         # Get grid position list of ring
         if self.ring_body_ids is None:
             self.ring_body_ids = []
@@ -64,13 +64,16 @@ class MujocoUR5eRingEnv(MujocoUR5eEnvBase):
         # Check z position
         z_thre = pole_pos[2] + 0.08  # [m]
         if ring_grid_pos_list[:, 2].max() > z_thre:
-            return False
+            return 0.0
 
         # Check if the ring hangs on the pole
         ring_grid_xy_list = ring_grid_pos_list[:, :2]
         ring_grid_xy_list = np.vstack([ring_grid_xy_list, ring_grid_xy_list[0]])
         ring_path = Path(ring_grid_xy_list)
-        return ring_path.contains_point(pole_pos[:2])
+        if ring_path.contains_point(pole_pos[:2]):
+            return 1.0
+        else:
+            return 0.0
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:

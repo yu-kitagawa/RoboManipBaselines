@@ -45,7 +45,7 @@ class MujocoUR5eCableEnv(MujocoUR5eEnvBase):
 
         self.cable_body_ids = None
 
-    def _get_success(self):
+    def _get_reward(self):
         # Get grid position list of cable
         if self.cable_body_ids is None:
             self.cable_body_ids = []
@@ -64,7 +64,7 @@ class MujocoUR5eCableEnv(MujocoUR5eEnvBase):
         # Check cable height
         z_thre = pole1_pos[2] + 0.01  # [m]
         if cable_grid_pos_list[:, 2].max() > z_thre:
-            return False
+            return 0.0
 
         # Check cable end
         cable_end_body_id = mujoco.mj_name2id(
@@ -74,7 +74,7 @@ class MujocoUR5eCableEnv(MujocoUR5eEnvBase):
         x_thre = pole2_pos[0]
         y_thre = pole1_pos[1] - 0.05
         if cable_end_pos[0] < x_thre or cable_end_pos[1] > y_thre:
-            return False
+            return 0.0
 
         # Check if the cable passes through the poles
         cable_grid_xy_list = cable_grid_pos_list[:, :2]
@@ -100,9 +100,9 @@ class MujocoUR5eCableEnv(MujocoUR5eEnvBase):
                     pole_dir[0] * cable_dir[1] - pole_dir[1] * cable_dir[0]
                 )
                 if cable_pole_cross > 0:
-                    return True
+                    return 1.0
 
-        return False
+        return 0.0
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:

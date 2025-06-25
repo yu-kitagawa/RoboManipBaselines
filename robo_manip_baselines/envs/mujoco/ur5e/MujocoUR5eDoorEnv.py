@@ -49,8 +49,22 @@ class MujocoUR5eDoorEnv(MujocoUR5eEnvBase):
             ]
         )  # [m]
 
-    def _get_success(self):
-        return self.data.joint("door").qpos[0] < np.deg2rad(-60.0)
+    def _get_reward(self):
+        gripper_pos = self.data.site("pinch").xpos.copy()
+        handle_pos = self.data.geom("door_handle").xpos.copy()
+        gripper_handle_dist = np.linalg.norm(gripper_pos - handle_pos)
+        gripper_handle_dist_margin = 0.08  # [m]
+        reaching_reward = np.exp(
+            -10.0 * np.max([gripper_handle_dist - gripper_handle_dist_margin, 0.0])
+        )
+
+        door_angle = self.data.joint("door").qpos[0]
+        door_angle_target = np.deg2rad(-45.0)
+        opening_reward = np.clip(door_angle / door_angle_target, 0.0, 1.0)
+        if opening_reward >= 1.0:
+            reaching_reward = 1.0
+
+        return 0.5 * (reaching_reward + opening_reward)
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:
