@@ -11,6 +11,7 @@ matplotlib.use("TkAgg")
 import numpy as np
 from dataclasses import dataclass
 import torch
+import yaml
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../../../work/lerobot"))
 from lerobot.common.policies.pi0.modeling_pi0 import PI0Policy
@@ -199,7 +200,9 @@ class RolloutPi0(RolloutBase):
                     for key in self.env.unwrapped.command_keys_for_step
                 ]
             )
-            self.obs, _, self.terminated, _, self.info = self.env.step(env_action)
+            self.obs, self.reward, self.terminated, _, self.info = self.env.step(
+                env_action
+            )
 
             self.phase_manager.post_update()
 
@@ -208,3 +211,10 @@ class RolloutPi0(RolloutBase):
 
             if self.quit_flag:
                 break
+
+        if self.args.result_filename is not None:
+            print(
+                f"[{self.__class__.__name__}] Save the rollout results: {self.args.result_filename}"
+            )
+            with open(self.args.result_filename, "w") as result_file:
+                yaml.dump(self.result, result_file)
