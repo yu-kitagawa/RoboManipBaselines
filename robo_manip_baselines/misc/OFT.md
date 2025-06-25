@@ -32,6 +32,11 @@ Install [OpenVLA-OFT](https://github.com/yu-kitagawa/openvla) as in 2.
 
 Install [RoboManipBaselines](https://github.com/isri-aist/RoboManipBaselines) according to [here](../../README.md#Install).
 
+If `numpy>=2.0.0`, install `numpy<2.0.0`.
+```console
+$ pip install "numpy<2.0.0"
+```
+
 ## Dataset preparation
 
 Make RMB files in each of train (for training) and val directories (for validation).

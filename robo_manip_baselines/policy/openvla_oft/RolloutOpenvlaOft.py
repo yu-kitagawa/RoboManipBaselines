@@ -56,6 +56,8 @@ class DeployConfig:
 
 
 class RolloutOpenvlaOft(RolloutBase):
+    require_task_desc = True
+
     def setup_policy(self):
         # Print policy information
         self.print_policy_info()
@@ -75,12 +77,6 @@ class RolloutOpenvlaOft(RolloutBase):
             num_open_loop_steps = 8,
             unnorm_key = "ur5e_sample",
         )
-
-        self.cmd_args = " ".join(sys.argv).lower()
-        if "aloha" in self.cmd_args:
-            self.camera_names = ["overhead_cam", "wrist_cam_left", "wrist_cam_right"]
-        elif "ur5e" in self.cmd_args:
-            self.camera_names = ["front", "hand"]
 
         # Load OpenVLA-OFT policy and inputs processor
         self.vla = get_vla(self.cfg)
@@ -121,10 +117,23 @@ class RolloutOpenvlaOft(RolloutBase):
         )
         super().setup_plot(fig_ax)
 
-    def reset_variables(self):
-        super().reset_variables()
-        if "aloha" in self.cmd_args:
-            self.policy_action_list = np.empty((0, 14))
+    def setup_model_meta_info(self):
+        cmd_args = " ".join(sys.argv).lower()
+        self.state_keys = ["measured_joint_pos"]
+        self.action_keys = ["command_joint_pos"]
+        if "aloha" in cmd_args:
+            self.camera_names = ["overhead_cam", "wrist_cam_left", "wrist_cam_right"]
+            self.state_dim = 14
+            self.action_dim = 14
+        elif "ur5e" in cmd_args:
+            self.camera_names = ["front", "hand"]
+            self.state_dim = 7
+            self.action_dim = 7
+
+        if self.args.skip is None:
+            self.args.skip = 1
+        if self.args.skip_draw is None:
+            self.args.skip_draw = self.args.skip
 
     def infer_policy(self):
         # Infer
@@ -140,7 +149,7 @@ class RolloutOpenvlaOft(RolloutBase):
         }
 
         # Generate robot action chunk (sequence of future actions)
-        all_actions = get_vla_action(self.cfg, self.vla, self.processor, observation, "do something", self.action_head, self.proprio_projector)
+        all_actions = get_vla_action(self.cfg, self.vla, self.processor, observation, self.args.task_desc, self.action_head, self.proprio_projector)
 
         self.policy_action = all_actions.pop(0)
         self.policy_action_list = np.concatenate(

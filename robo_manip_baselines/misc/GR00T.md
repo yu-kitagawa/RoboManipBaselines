@@ -26,6 +26,18 @@ Install [GR00T](https://github.com/yu-kitagawa/Isaac-GR00T) as in 2.
 
 Install [RoboManipBaselines](https://github.com/isri-aist/RoboManipBaselines) according to [here](../../README.md#Install).
 
+If `numpy>=2.0.0`, install `numpy<2.0.0`.
+```console
+$ pip install "numpy<2.0.0"
+```
+
+Install `GR00T-N1-2B` model according to following steps.
+```console
+$ python
+> from huggingface_hub import snapshot_download
+> snapshot_download(repo_id="nvidia/GR00T-N1-2B", revision="main")
+```
+
 ## Dataset preparation
 
 Convert your RMB data to lerobot dataset.
@@ -53,6 +65,8 @@ Run a trained policy in the simulator.
 ```console
 $ Use Env 3
 $ Go to robo_manip_baselines directry
-$ python ./bin/Rollout.py Gr00t <task name> --checkpoint <checkpoint dir> --world_idx 0
+$ python ./bin/Rollout.py Gr00t <task name> --checkpoint <checkpoint dir> --world_idx 0　--no_plot
 ```
 The followings are supported as task name: `MujocoUR5eCable`, `MujocoUR5eRing`, `MujocoUR5eParticle`, `MujocoUR5eCloth`, `MujocoUR5eDoor`.
+
+If finetuning and rollout are in different environments, rewrite the model path of the item "base_model_name_or_path" in the `<checkpoint_dir>/adapter_config.json` to your `GR00t-N1-2B` model path.

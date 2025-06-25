@@ -21,17 +21,19 @@ from robo_manip_baselines.common.data.DataKey import DataKey
 
 
 class RolloutGr00t(RolloutBase):
+    require_task_desc = True
+
     def setup_policy(self):
         # Print policy information
         self.print_policy_info()
         print(f"  - chunk size: {8}")
 
         # get the data config
-        data_config = DATA_CONFIG_MAP["ur5e"]
+        self.data_config = DATA_CONFIG_MAP["ur5e"]
 
         # get the modality configs and transforms
-        modality_config = data_config.modality_config()
-        transforms = data_config.transform()
+        modality_config = self.data_config.modality_config()
+        transforms = self.data_config.transform()
 
         self.gr00t = Gr00tPolicy(
             model_path=self.args.checkpoint,
@@ -95,6 +97,25 @@ class RolloutGr00t(RolloutBase):
     def reset_variables(self):
         super().reset_variables()
 
+    def setup_model_meta_info(self):
+        cmd_args = " ".join(sys.argv).lower()
+        if "aloha" in cmd_args:
+            data_config = DATA_CONFIG_MAP["aloha"]
+            self.state_dim = 14
+            self.action_dim = 14
+        elif "ur5e" in cmd_args:
+            data_config = DATA_CONFIG_MAP["ur5e"]
+            self.state_dim = 7
+            self.action_dim = 7
+        self.state_keys = ["measured_joint_pos"]
+        self.action_keys = ["command_joint_pos"]
+        self.camera_names = [s.replace("video.", "").replace("_rgb", "") for s in data_config.video_keys]
+
+        if self.args.skip is None:
+            self.args.skip = 1
+        if self.args.skip_draw is None:
+            self.args.skip_draw = self.args.skip
+
     def infer_policy(self):
         # Infer
 
@@ -105,12 +126,14 @@ class RolloutGr00t(RolloutBase):
         # images[0] = images[0][np.newaxis]
 
         observation = {
-            "video.front_rgb": self.info["rgb_images"]["front"][np.newaxis],
-            "video.side_rgb": self.info["rgb_images"]["side"][np.newaxis],
-            "video.hand_rgb": self.info["rgb_images"]["hand"][np.newaxis],
+            #"video.front_rgb": self.info["rgb_images"]["front"][np.newaxis],
+            #"video.side_rgb": self.info["rgb_images"]["side"][np.newaxis],
+            #"video.hand_rgb": self.info["rgb_images"]["hand"][np.newaxis],
             "state.qpos": state,
-            "annotation.human.action.task_description": ["open the door"]
+            "annotation.human.action.task_description": [self.args.task_desc]
         }
+        for key in self.data_config.video_keys:
+            observation[key] = self.info["rgb_images"][key.replace("video.", "").replace("_rgb", "")][np.newaxis]
 
         all_actions = self.gr00t.get_action(observation)
 
@@ -193,7 +216,5 @@ class RolloutGr00t(RolloutBase):
             self.time += 1
             self.phase_manager.check_transition()
 
-            if self.time == 300:  # escape key
-                self.quit_flag = True
             if self.quit_flag:
                 break

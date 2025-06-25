@@ -17,6 +17,12 @@ Install [lerobot](https://github.com/yu-kitagawa/lerobot) as in 2.
 
 Install [RoboManipBaselines](https://github.com/isri-aist/RoboManipBaselines) according to [here](../../README.md#Install).
 
+## advance preparation
+Create a huggingface account and search google/paligemma-3b-pt-224 model on the website.
+
+There is an item marked "You need to agree to share your contact information to access this model".
+Click on "Agree and access repository" in that item and follow the steps to complete the procedure.
+
 ## Dataset preparation
 
 Convert your RMB data to lerobot dataset.

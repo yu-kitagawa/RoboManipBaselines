@@ -20,6 +20,8 @@ from robo_manip_baselines.common.data.DataKey import DataKey
 
 
 class RolloutPi0(RolloutBase):
+    require_task_desc = True
+
     def setup_policy(self):
         # Print policy information
         self.print_policy_info()
@@ -78,35 +80,48 @@ class RolloutPi0(RolloutBase):
         else:
             self.action_plot_scale = np.zeros(0)
 
+    def setup_model_meta_info(self):
+        cmd_args = " ".join(sys.argv).lower()
+        self.state_keys = ["measured_joint_pos"]
+        self.action_keys = ["command_joint_pos"]
+        if "aloha" in cmd_args:
+            self.camera_names = ["overhead_cam", "wrist_cam_left", "wrist_cam_right"]
+            self.state_dim = 14
+            self.action_dim = 14
+        elif "ur5e" in cmd_args:
+            self.camera_names = ["front", "side", "hand"]
+            self.state_dim = 7
+            self.action_dim = 7
+
+        if self.args.skip is None:
+            self.args.skip = 1
+        if self.args.skip_draw is None:
+            self.args.skip_draw = self.args.skip
+
     def infer_policy(self):
         # Infer
 
+        img = {}
         state = self.get_state()
         state = state[np.newaxis]
         state = torch.from_numpy(state.copy()).to("cuda:0")
         state = state.type(torch.float32)
-        front = self.info["rgb_images"]["front"][np.newaxis].transpose(0, 3, 1, 2)
-        front = torch.from_numpy(front.copy()).to("cuda:0")
-        front = front.type(torch.float32)
-        front /= 255
-        side = self.info["rgb_images"]["side"][np.newaxis].transpose(0, 3, 1, 2)
-        side = torch.from_numpy(side.copy()).to("cuda:0")
-        side = side.type(torch.float32)
-        side /= 255
-        hand = self.info["rgb_images"]["hand"][np.newaxis].transpose(0, 3, 1, 2)
-        hand = torch.from_numpy(hand.copy()).to("cuda:0")
-        hand = hand.type(torch.float32)
-        hand /= 255
+        for camera_name in self.camera_names:
+            tmp = self.info["rgb_images"][camera_name][np.newaxis].transpose(0, 3, 1, 2)
+            tmp = torch.from_numpy(tmp.copy()).to("cuda:0")
+            tmp = tmp.type(torch.float32)
+            tmp /= 255
+            img[camera_name] = tmp
 
         # images = self.get_images()
         # images[0] = images[0][np.newaxis]
 
         observation = {
-            "observation.images.front_rgb": front,
-            "observation.images.side_rgb": side,
-            "observation.images.hand_rgb": hand,
+            "observation.images.front_rgb": img["front"],
+            "observation.images.side_rgb": img["side"],
+            "observation.images.hand_rgb": img["hand"],
             "observation.state": state,
-            "task": ["pass the cable between two poles"],
+            "task": [self.args.task_desc],
         }
 
         action = self.pi0.select_action(observation)
@@ -191,7 +206,5 @@ class RolloutPi0(RolloutBase):
             self.time += 1
             self.phase_manager.check_transition()
 
-            if self.time == 720:  # escape key
-                self.quit_flag = True
             if self.quit_flag:
                 break
