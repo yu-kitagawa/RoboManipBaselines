@@ -103,7 +103,7 @@ class RolloutPhase(PhaseBase):
             )
 
             self.op.result["success"].append(bool(self.op.reward >= 1.0))
-            self.op.result["reward"].append(self.op.reward.item())
+            self.op.result["reward"].append(float(self.op.reward))
             self.op.result["duration"].append(elapsed_duration)
 
             if self.op.args.save_last_image:
