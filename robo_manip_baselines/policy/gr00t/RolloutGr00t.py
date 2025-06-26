@@ -46,22 +46,6 @@ class RolloutGr00t(RolloutBase):
 
         #self.device = torch.device("cpu")
 
-        # Construct policy
-        #self.policy = ACTPolicy(self.model_meta_info["policy"]["args"])
-
-        # Register fook to visualize attention images
-        # def forward_fook(_layer, _input, _output):
-        #     # Output of MultiheadAttention is a tuple (attn_output, attn_output_weights)
-        #     # https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
-        #     _layer.correlation_mat = _output[1][0].detach().cpu().numpy()
-
-        # for layer in self.policy.model.transformer.encoder.layers:
-        #     layer.self_attn.correlation_mat = None
-        #     layer.self_attn.register_forward_hook(forward_fook)
-
-        # Load checkpoint
-        # self.load_ckpt()
-
     def setup_plot(self):
         fig_ax = plt.subplots(
             2,
@@ -114,7 +98,7 @@ class RolloutGr00t(RolloutBase):
             self.action_dim = 7
         self.state_keys = ["measured_joint_pos"]
         self.action_keys = ["command_joint_pos"]
-        self.camera_names = [s.replace("video.", "").replace("_rgb", "") for s in data_config.video_keys]
+        self.camera_names = self.args.camera_names
 
         if self.args.skip is None:
             self.args.skip = 1
@@ -127,18 +111,14 @@ class RolloutGr00t(RolloutBase):
         state = self.get_state()
         state = state[np.newaxis]
 
-        # images = self.get_images()
-        # images[0] = images[0][np.newaxis]
+        images = self.get_images()
 
         observation = {
-            #"video.front_rgb": self.info["rgb_images"]["front"][np.newaxis],
-            #"video.side_rgb": self.info["rgb_images"]["side"][np.newaxis],
-            #"video.hand_rgb": self.info["rgb_images"]["hand"][np.newaxis],
             "state.qpos": state,
             "annotation.human.action.task_description": [self.args.task_desc]
         }
-        for key in self.data_config.video_keys:
-            observation[key] = self.info["rgb_images"][key.replace("video.", "").replace("_rgb", "")][np.newaxis]
+        for camera_name in self.camera_names:
+            observation[f"video.{camera_name}_rgb"] = images[camera_name]
 
         all_actions = self.gr00t.get_action(observation)
 
@@ -162,10 +142,10 @@ class RolloutGr00t(RolloutBase):
     
     def get_images(self):
         # Assume all images are the same size
-        images = []
+        images = {}
         for camera_name in self.camera_names:
-            image = self.info["rgb_images"][camera_name]
-            images.append(image)
+            image = self.info["rgb_images"][camera_name][np.newaxis]
+            images[camera_name] = image
 
         return images
 

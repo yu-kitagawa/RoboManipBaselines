@@ -32,22 +32,6 @@ class RolloutPi0(RolloutBase):
 
         #self.device = torch.device("cpu")
 
-        # Construct policy
-        #self.policy = ACTPolicy(self.model_meta_info["policy"]["args"])
-
-        # Register fook to visualize attention images
-        # def forward_fook(_layer, _input, _output):
-        #     # Output of MultiheadAttention is a tuple (attn_output, attn_output_weights)
-        #     # https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
-        #     _layer.correlation_mat = _output[1][0].detach().cpu().numpy()
-
-        # for layer in self.policy.model.transformer.encoder.layers:
-        #     layer.self_attn.correlation_mat = None
-        #     layer.self_attn.register_forward_hook(forward_fook)
-
-        # Load checkpoint
-        # self.load_ckpt()
-
     def setup_plot(self):
         fig_ax = plt.subplots(
             2,
@@ -85,16 +69,14 @@ class RolloutPi0(RolloutBase):
         cmd_args = " ".join(sys.argv).lower()
         self.state_keys = ["measured_joint_pos"]
         self.action_keys = ["command_joint_pos"]
+        self.camera_names = self.args.camera_names
         if "aloha" in cmd_args:
-            self.camera_names = ["overhead_cam", "wrist_cam_left", "wrist_cam_right"]
             self.state_dim = 14
             self.action_dim = 14
         elif "ur5e" in cmd_args:
-            self.camera_names = ["front", "side", "hand"]
             self.state_dim = 7
             self.action_dim = 7
         else:
-            self.camera_names = ["front", "side", "hand"]
             self.state_dim = 7
             self.action_dim = 7
 
@@ -106,28 +88,19 @@ class RolloutPi0(RolloutBase):
     def infer_policy(self):
         # Infer
 
-        img = {}
         state = self.get_state()
         state = state[np.newaxis]
         state = torch.from_numpy(state.copy()).to("cuda:0")
         state = state.type(torch.float32)
-        for camera_name in self.camera_names:
-            tmp = self.info["rgb_images"][camera_name][np.newaxis].transpose(0, 3, 1, 2)
-            tmp = torch.from_numpy(tmp.copy()).to("cuda:0")
-            tmp = tmp.type(torch.float32)
-            tmp /= 255
-            img[camera_name] = tmp
 
-        # images = self.get_images()
-        # images[0] = images[0][np.newaxis]
+        images = self.get_images()
 
         observation = {
-            "observation.images.front_rgb": img["front"],
-            "observation.images.side_rgb": img["side"],
-            "observation.images.hand_rgb": img["hand"],
             "observation.state": state,
             "task": [self.args.task_desc],
         }
+        for camera_name in self.camera_names:
+            observation[f"observation.images.{camera_name}_rgb"] = images[camera_name]
 
         action = self.pi0.select_action(observation)
         action = torch.squeeze(action)
@@ -152,10 +125,13 @@ class RolloutPi0(RolloutBase):
     
     def get_images(self):
         # Assume all images are the same size
-        images = []
+        images = {}
         for camera_name in self.camera_names:
-            image = self.info["rgb_images"][camera_name]
-            images.append(image)
+            image = self.info["rgb_images"][camera_name][np.newaxis].transpose(0, 3, 1, 2)
+            image = torch.from_numpy(image.copy()).to("cuda:0")
+            image = image.type(torch.float32)
+            image /= 255
+            images[camera_name] = image
 
         return images
 

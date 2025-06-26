@@ -8,7 +8,7 @@ Install [rlds_dataset_builder](https://github.com/yu-kitagawa/rlds_dataset_build
 $ # Go to any directory
 $ git clone https://github.com/yu-kitagawa/rlds_dataset_builder.git
 $ cd rlds_dataset_builder
-$ pip install -r requirements.txt.
+$ pip install -r requirements.txt
 ```
 
 2. **Env to train**

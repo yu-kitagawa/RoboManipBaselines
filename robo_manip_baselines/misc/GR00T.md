@@ -37,6 +37,7 @@ $ python
 > from huggingface_hub import snapshot_download
 > snapshot_download(repo_id="nvidia/GR00T-N1-2B", revision="main")
 ```
+`GR00T-N1-2B` model is saved in `~/.cache/huggingface/hub/`.
 
 ## Dataset preparation
 
@@ -69,4 +70,4 @@ $ python ./bin/Rollout.py Gr00t <task name> --checkpoint <checkpoint dir> --worl
 ```
 The followings are supported as task name: `MujocoUR5eCable`, `MujocoUR5eRing`, `MujocoUR5eParticle`, `MujocoUR5eCloth`, `MujocoUR5eDoor`.
 
-If finetuning and rollout are in different environments, rewrite the model path of the item "base_model_name_or_path" in the `<checkpoint_dir>/adapter_config.json` to your `GR00t-N1-2B` model path.
+If finetuning and rollout are in different environments, rewrite the model path of the item "base_model_name_or_path" in the `<checkpoint_dir>/adapter_config.json` to your `GR00t-N1-2B` model path you installed in the Install section.

@@ -90,22 +90,6 @@ class RolloutOpenvlaOft(RolloutBase):
 
         self.device = torch.device("cpu")
 
-        # Construct policy
-        #self.policy = ACTPolicy(self.model_meta_info["policy"]["args"])
-
-        # Register fook to visualize attention images
-        # def forward_fook(_layer, _input, _output):
-        #     # Output of MultiheadAttention is a tuple (attn_output, attn_output_weights)
-        #     # https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
-        #     _layer.correlation_mat = _output[1][0].detach().cpu().numpy()
-
-        # for layer in self.policy.model.transformer.encoder.layers:
-        #     layer.self_attn.correlation_mat = None
-        #     layer.self_attn.register_forward_hook(forward_fook)
-
-        # Load checkpoint
-        # self.load_ckpt()
-
     def setup_plot(self):
         fig_ax = plt.subplots(
             2,
@@ -121,16 +105,14 @@ class RolloutOpenvlaOft(RolloutBase):
         cmd_args = " ".join(sys.argv).lower()
         self.state_keys = ["measured_joint_pos"]
         self.action_keys = ["command_joint_pos"]
+        self.camera_names = self.args.camera_names
         if "aloha" in cmd_args:
-            self.camera_names = ["overhead_cam", "wrist_cam_left", "wrist_cam_right"]
             self.state_dim = 14
             self.action_dim = 14
         elif "ur5e" in cmd_args:
-            self.camera_names = ["front", "hand"]
             self.state_dim = 7
             self.action_dim = 7
         else:
-            self.camera_names = ["front", "hand"]
             self.state_dim = 7
             self.action_dim = 7
 

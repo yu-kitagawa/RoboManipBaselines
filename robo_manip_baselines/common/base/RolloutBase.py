@@ -143,15 +143,15 @@ class RolloutBase(ABC):
         render_mode = None if self.args.no_render else "human"
         self.setup_env(render_mode=render_mode)
 
+        if self.args.camera_names is None:
+            self.args.camera_names = self.env.unwrapped.camera_names
+
         self.setup_model_meta_info()
 
         self.setup_policy()
 
         if not self.args.no_plot:
             self.setup_plot()
-
-        if self.args.camera_names is None:
-            self.args.camera_names = self.env.unwrapped.camera_names
 
         self.motion_manager = MotionManager(self.env)
 
