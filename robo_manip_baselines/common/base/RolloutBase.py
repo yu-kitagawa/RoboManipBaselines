@@ -140,12 +140,12 @@ class RolloutBase(ABC):
 
         set_random_seed(self.args.seed)
 
+        render_mode = None if self.args.no_render else "human"
+        self.setup_env(render_mode=render_mode)
+
         self.setup_model_meta_info()
 
         self.setup_policy()
-
-        render_mode = None if self.args.no_render else "human"
-        self.setup_env(render_mode=render_mode)
 
         if not self.args.no_plot:
             self.setup_plot()
