@@ -74,7 +74,7 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
 
         obs = self._get_obs()
         reward = self._get_reward()
-        terminated = reward >= 1.0
+        terminated = False
         info = self._get_info()
 
         if self.render_mode == "human":

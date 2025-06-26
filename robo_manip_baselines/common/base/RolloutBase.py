@@ -45,7 +45,7 @@ class RolloutPhase(PhaseBase):
         super().start()
 
         self.op.rollout_time_idx = 0
-        self.termination_time = None
+        self.success_time = None
         print(
             f"[{self.op.__class__.__name__}] Start policy rollout. Press the 'n' key to finish policy rollout."
         )
@@ -76,12 +76,12 @@ class RolloutPhase(PhaseBase):
         if self.op.key == ord("n"):
             transition_flag = True
         elif self.op.args.auto_exit:
-            if self.op.terminated and (self.termination_time is None):
-                self.termination_time = elapsed_duration
+            if (self.op.reward >= 1.0) and (self.success_time is None):
+                self.success_time = elapsed_duration
 
-            post_termination_duration = 3.0  # [s]
-            if self.termination_time is not None:
-                if elapsed_duration > self.termination_time + post_termination_duration:
+            if self.success_time is not None:
+                post_success_duration = 1.0  # [s]
+                if elapsed_duration > self.success_time + post_success_duration:
                     print(
                         f"[{self.op.__class__.__name__}] Terminate the rollout phase because the environment has been terminated."
                     )
@@ -103,7 +103,7 @@ class RolloutPhase(PhaseBase):
             )
 
             self.op.result["success"].append(bool(self.op.reward >= 1.0))
-            self.op.result["reward"].append(self.op.reward)
+            self.op.result["reward"].append(self.op.reward.item())
             self.op.result["duration"].append(elapsed_duration)
 
             if self.op.args.save_last_image:
@@ -407,9 +407,7 @@ class RolloutBase(ABC):
                     for key in self.env.unwrapped.command_keys_for_step
                 ]
             )
-            self.obs, self.reward, self.terminated, _, self.info = self.env.step(
-                env_action
-            )
+            self.obs, self.reward, _, _, self.info = self.env.step(env_action)
 
             self.phase_manager.post_update()
 
