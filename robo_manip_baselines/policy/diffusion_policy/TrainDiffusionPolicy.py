@@ -1,10 +1,15 @@
 import argparse
 import copy
+import os
+import sys
 
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from tqdm import tqdm
 
+sys.path.append(
+    os.path.join(os.path.dirname(__file__), "../../../third_party/diffusion_policy")
+)
 from diffusion_policy.common.pytorch_util import dict_apply, optimizer_to
 from diffusion_policy.model.common.lr_scheduler import get_scheduler
 from diffusion_policy.model.diffusion.ema_model import EMAModel

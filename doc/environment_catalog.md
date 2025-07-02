@@ -29,6 +29,26 @@ Task to roll up the cloth.
 
 https://github.com/user-attachments/assets/0b7a52d5-5ce3-49f2-b574-a78e729865cc
 
+#### MujocoUR5eDoor
+Task to open a door.
+
+https://github.com/user-attachments/assets/738a1b13-0b32-4d82-87ea-f7c60ae46849
+
+#### MujocoUR5eToolbox
+Task to pick up a toolbox and place it.
+
+https://github.com/user-attachments/assets/fb3e1e5b-db10-475a-8263-57e0fda2cfaf
+
+#### MujocoUR5eCabinet
+Task to open a cabinet with a sliding door and a hinged door.
+
+https://github.com/user-attachments/assets/ff0d8be0-1d6c-4f8d-aaca-de451c13df7d
+
+#### MujocoUR5eInsert
+Task to insert a pin into a hole.
+
+https://github.com/user-attachments/assets/6435a06d-fcd2-45ec-88da-5a26852dd4d8
+
 ### Dual UR5e
 #### MujocoUR5eDualCable
 Task to manipulate a cable with two grippers.

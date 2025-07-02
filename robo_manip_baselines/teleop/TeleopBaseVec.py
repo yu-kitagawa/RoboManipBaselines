@@ -185,7 +185,7 @@ class TeleopBaseVec(TeleopBase):
         num_success = sum(filename is not None for filename in filename_list)
         if num_success > 0:
             print(
-                "[{}] Teleoperation succeeded: Save the {} data such as {} etc.".format(
+                "[{}] Save the {} data such as {} etc.".format(
                     self.__class__.__name__,
                     sum(filename is not None for filename in filename_list),
                     next(

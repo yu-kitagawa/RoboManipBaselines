@@ -120,9 +120,7 @@ class EndTeleopPhase(PhaseBase):
             self.op.save_data()
             self.op.reset_flag = True
         elif self.op.key == ord("f"):
-            print(
-                f"[{self.op.__class__.__name__}] Teleoperation has failed. Reset without saving."
-            )
+            print(f"[{self.op.__class__.__name__}] Reset without saving the data.")
             self.op.reset_flag = True
 
 
@@ -643,9 +641,7 @@ class TeleopBase(ABC):
                 )
             )
         self.data_manager.save_data(filename)
-        print(
-            f"[{self.__class__.__name__}] Teleoperation succeeded: Save the data as {filename}"
-        )
+        print(f"[{self.__class__.__name__}] Save the data as {filename}")
 
     def print_statistics(self):
         print(f"[{self.__class__.__name__}] Statistics on teleoperation")

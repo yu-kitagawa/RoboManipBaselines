@@ -46,10 +46,17 @@ class MujocoUR5eInsertEnv(MujocoUR5eEnvBase):
         peg_pos = self.data.body("peg").xpos.copy()
         hole_pos = self.data.body("hole").xpos.copy()
 
-        xy_thre = 0.01  # [m]
+        peg_z_axis = self.data.body("peg").xmat.reshape(3, 3)[:, 2]
+        world_z_axis = np.array([0.0, 0.0, -1.0])
+
+        xy_thre = 0.012  # [m]
         z_thre = hole_pos[2] + 0.05  # [m]
-        if (np.max(np.abs(peg_pos[:2] - hole_pos[:2])) < xy_thre) and (
-            peg_pos[2] < z_thre
+        tilt_thre = 10  # [deg]
+        print(np.dot(peg_z_axis, world_z_axis), np.cos(np.deg2rad(tilt_thre)))
+        if (
+            (np.max(np.abs(peg_pos[:2] - hole_pos[:2])) < xy_thre)
+            and (peg_pos[2] < z_thre)
+            and (np.dot(peg_z_axis, world_z_axis) > np.cos(np.deg2rad(tilt_thre)))
         ):
             return 1.0
         else:
