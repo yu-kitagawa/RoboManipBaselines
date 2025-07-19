@@ -46,7 +46,7 @@ class RefineRmbData:
                     )
 
                 print(
-                    f'Set task_desc from "{task_desc_orig}" to "{self.task_desc_new}"'
+                    f"Set task_desc from '{task_desc_orig}' to '{self.task_desc_new}'"
                 )
                 rmb_data.attrs["task_desc"] = self.task_desc_new
 
