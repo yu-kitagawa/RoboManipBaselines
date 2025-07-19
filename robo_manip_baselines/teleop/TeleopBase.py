@@ -381,6 +381,27 @@ class TeleopBase(ABC):
         ]
         self.phase_manager = PhaseManager(phase_order)
 
+        def get_text_func(phase):
+            text = remove_suffix(phase.name, "Phase")
+            if self.reward >= 1.0:
+                text += " (success)"
+            return text
+
+        def get_color_func(phase):
+            if phase.name in ("InitialTeleopPhase", "StandbyTeleopPhase"):
+                return np.array([200, 200, 255])
+            elif phase.name in ("SyncPhase"):
+                return np.array([255, 255, 200])
+            elif phase.name in ("TeleopPhase", "ReplayPhase"):
+                return np.array([255, 200, 200])
+            elif phase.name in ("EndTeleopPhase", "EndReplayPhase"):
+                return np.array([200, 200, 200])
+            else:
+                return np.array([200, 255, 200])
+
+        self.phase_manager.get_text_func = get_text_func
+        self.phase_manager.get_color_func = get_color_func
+
     def get_pre_motion_phases(self):
         return []
 
@@ -552,26 +573,9 @@ class TeleopBase(ABC):
                 )
 
     def draw_image(self):
-        def get_text_func(phase):
-            text = remove_suffix(phase.name, "Phase")
-            if self.reward >= 1.0:
-                text += " (success)"
-            return text
-
-        def get_color_func(phase):
-            if phase.name in ("InitialTeleopPhase", "StandbyTeleopPhase"):
-                return np.array([200, 200, 255])
-            elif phase.name in ("SyncPhase"):
-                return np.array([255, 255, 200])
-            elif phase.name in ("TeleopPhase", "ReplayPhase"):
-                return np.array([255, 200, 200])
-            elif phase.name in ("EndTeleopPhase", "EndReplayPhase"):
-                return np.array([200, 200, 200])
-            else:
-                return np.array([200, 255, 200])
-
         phase_image = self.phase_manager.get_phase_image(
-            get_text_func=get_text_func, get_color_func=get_color_func
+            get_text_func=self.phase_manager.get_text_func,
+            get_color_func=self.phase_manager.get_color_func,
         )
         rgb_images = []
         depth_images = []
