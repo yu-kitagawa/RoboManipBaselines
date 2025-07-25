@@ -3,7 +3,7 @@ from eipl.utils import LossScheduler
 from torchvision.transforms import v2
 from tqdm import tqdm
 
-from robo_manip_baselines.common import DataKey, TrainBase
+from robo_manip_baselines.common import DataKey, RmbData, TrainBase
 
 from .SarnnDataset import SarnnDataset
 from .SarnnPolicy import SarnnPolicy
@@ -25,22 +25,6 @@ class TrainSarnn(TrainBase):
             raise ValueError(
                 f"[{self.__class__.__name__}] action_keys must be empty: {self.args.action_keys}"
             )
-
-        # Set image size list
-        def refine_size_list(size_list):
-            if len(size_list) == 2:
-                return [tuple(size_list)] * len(self.args.camera_names)
-            else:
-                assert len(size_list) == len(self.args.camera_names) * 2
-                return [
-                    (size_list[i], size_list[i + 1])
-                    for i in range(0, len(size_list), 2)
-                ]
-
-        self.args.image_crop_size_list = refine_size_list(
-            self.args.image_crop_size_list
-        )
-        self.args.image_size_list = refine_size_list(self.args.image_size_list)
 
     def set_additional_args(self, parser):
         for action in parser._actions:
@@ -84,7 +68,7 @@ class TrainSarnn(TrainBase):
             "--image_crop_size_list",
             type=int,
             nargs="+",
-            default=[280, 280],
+            default=None,
             help="List of image size (width, height) to be cropped before resize. Specify a 2-dimensional array if all images have the same size, or an array of <number-of-images> * 2 dimensions if the size differs for each individual image.",
         )
         parser.add_argument(
@@ -106,6 +90,48 @@ class TrainSarnn(TrainBase):
             default=50,
             help="Dimension of hidden state of LSTM",
         )
+
+    def setup_rmb_files(self):
+        super().setup_rmb_files()
+
+        # Set image size list
+        if self.args.image_crop_size_list is None:
+            with RmbData(self.all_filenames[0]) as rmb_data:
+                env_name = rmb_data.attrs["env"]
+
+            if env_name == "MujocoUR5eCableEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eRingEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eParticleEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eClothEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eDoorEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eToolboxEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eCabinetEnv":
+                self.args.image_crop_size_list = [280, 280]
+            elif env_name == "MujocoUR5eInsertEnv":
+                self.args.image_crop_size_list = [280, 280]
+            else:
+                self.args.image_crop_size_list = [280, 280]
+
+        def refine_size_list(size_list):
+            if len(size_list) == 2:
+                return [tuple(size_list)] * len(self.args.camera_names)
+            else:
+                assert len(size_list) == len(self.args.camera_names) * 2
+                return [
+                    (size_list[i], size_list[i + 1])
+                    for i in range(0, len(size_list), 2)
+                ]
+
+        self.args.image_crop_size_list = refine_size_list(
+            self.args.image_crop_size_list
+        )
+        self.args.image_size_list = refine_size_list(self.args.image_size_list)
 
     def setup_model_meta_info(self):
         super().setup_model_meta_info()
