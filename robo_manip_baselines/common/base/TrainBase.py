@@ -32,6 +32,8 @@ class TrainBase(ABC):
 
         set_random_seed(self.args.seed)
 
+        self.setup_rmb_files()
+
         self.setup_model_meta_info()
 
         self.setup_dataset()
@@ -94,6 +96,12 @@ class TrainBase(ABC):
             help="camera names",
         )
 
+        parser.add_argument(
+            "--num_data",
+            type=int,
+            default=None,
+            help="number of data files to use for learning (by default all files in the dataset_dir are used)",
+        )
         parser.add_argument(
             "--train_ratio", type=float, default=0.8, help="ratio of train data"
         )
@@ -187,6 +195,12 @@ class TrainBase(ABC):
     def set_additional_args(self, parser):
         pass
 
+    def setup_rmb_files(self):
+        self.all_filenames = find_rmb_files(
+            self.args.dataset_dir, num_files=self.args.num_data
+        )
+        random.shuffle(self.all_filenames)
+
     def setup_model_meta_info(self):
         self.model_meta_info = {
             "data": {
@@ -223,22 +237,17 @@ class TrainBase(ABC):
             )
 
         # Get file list
-        all_filenames = find_rmb_files(self.args.dataset_dir)
-        random.shuffle(all_filenames)
-        train_num = max(
-            int(np.clip(self.args.train_ratio, 0.0, 1.0) * len(all_filenames)), 1
-        )
+        num_files = len(self.all_filenames)
+        train_num = max(int(np.clip(self.args.train_ratio, 0.0, 1.0) * num_files), 1)
         if self.args.val_ratio is None:
-            val_num = max(len(all_filenames) - train_num, 1)
+            val_num = max(num_files - train_num, 1)
         else:
-            val_num = max(
-                int(np.clip(self.args.val_ratio, 0.0, 1.0) * len(all_filenames)), 1
-            )
-        train_filenames = all_filenames[:train_num]
-        val_filenames = all_filenames[-1 * val_num :]
+            val_num = max(int(np.clip(self.args.val_ratio, 0.0, 1.0) * num_files), 1)
+        train_filenames = self.all_filenames[:train_num]
+        val_filenames = self.all_filenames[-1 * val_num :]
 
         # Set data stats
-        self.set_data_stats(all_filenames)
+        self.set_data_stats()
 
         # Make dataloader
         self.train_dataloader = self.make_dataloader(train_filenames, shuffle=True)
@@ -250,14 +259,14 @@ class TrainBase(ABC):
         # Print dataset information
         self.print_dataset_info()
 
-    def set_data_stats(self, all_filenames):
+    def set_data_stats(self):
         # Load dataset
         all_state = []
         all_action = []
         rgb_image_example = None
         depth_image_example = None
         episode_len_list = []
-        for filename in all_filenames:
+        for filename in self.all_filenames:
             with RmbData(filename) as rmb_data:
                 episode_len = rmb_data[DataKey.TIME][:: self.args.skip].shape[0]
                 episode_len_list.append(episode_len)

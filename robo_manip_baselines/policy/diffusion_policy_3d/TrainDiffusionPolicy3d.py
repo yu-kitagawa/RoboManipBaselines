@@ -19,7 +19,7 @@ from diffusion_policy_3d.common.pytorch_util import dict_apply, optimizer_to
 from diffusion_policy_3d.model.common.lr_scheduler import get_scheduler
 from diffusion_policy_3d.model.diffusion.ema_model import EMAModel
 from diffusion_policy_3d.policy.dp3 import DP3
-from robo_manip_baselines.common import DataKey, RmbData, TrainBase, find_rmb_files
+from robo_manip_baselines.common import DataKey, RmbData, TrainBase
 
 from .DiffusionPolicy3dDataset import DiffusionPolicy3dDataset
 
@@ -85,14 +85,13 @@ class TrainDiffusionPolicy3d(TrainBase):
         super().setup_model_meta_info()
 
         # Retrieve point cloud information
-        rmb_path_list = find_rmb_files(self.args.dataset_dir)
         pc_key = DataKey.get_pointcloud_key(self.args.camera_names[0])
         num_points = None
         image_size = None
         min_bound = None
         max_bound = None
-        for rmb_path in rmb_path_list:
-            with RmbData(rmb_path) as rmb_data:
+        for filename in self.all_filenames:
+            with RmbData(filename) as rmb_data:
                 num_points_new = rmb_data[pc_key].shape[1]
                 if num_points is None:
                     num_points = num_points_new
@@ -137,13 +136,13 @@ class TrainDiffusionPolicy3d(TrainBase):
 
         self.model_meta_info["policy"]["use_ema"] = self.args.use_ema
 
-    def set_data_stats(self, all_filenames):
-        super().set_data_stats(all_filenames)
+    def set_data_stats(self):
+        super().set_data_stats()
 
         # Load dataset
         pc_key = DataKey.get_pointcloud_key(self.args.camera_names[0])
         all_pointcloud = []
-        for filename in all_filenames:
+        for filename in self.all_filenames:
             with RmbData(filename) as rmb_data:
                 # Load pointcloud
                 pointcloud = rmb_data[pc_key][:: self.args.skip]
