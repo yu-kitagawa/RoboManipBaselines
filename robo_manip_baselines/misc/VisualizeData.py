@@ -19,7 +19,7 @@ def parse_argument():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("teleop_filename", type=str)
+    parser.add_argument("rmb_filename", type=str)
     parser.add_argument("--skip", default=10, type=int, help="skip", required=False)
     parser.add_argument(
         "-o",
@@ -51,7 +51,7 @@ def parse_argument():
 class VisualizeData:
     def __init__(
         self,
-        teleop_filename,
+        rmb_filename,
         skip,
         output_mp4_filename,
         mp4_codec,
@@ -60,39 +60,21 @@ class VisualizeData:
     ):
         self.display_stored_pointcloud = display_stored_pointcloud
 
-        print(f"[{self.__class__.__name__}] {self.data_setup.__name__} ...")
-        self.data_setup(teleop_filename, skip, rgb_crop_size_list)
+        self.setup_data(rmb_filename, skip, rgb_crop_size_list)
 
-        print(f"[{self.__class__.__name__}] {self.figure_axes_setup.__name__} ...")
-        self.figure_axes_setup()
+        self.setup_plot()
 
-        print(f"[{self.__class__.__name__}] {self.video_writer_setup.__name__} ...")
-        self.video_writer_setup(output_mp4_filename, mp4_codec)
+        self.setup_video(output_mp4_filename, mp4_codec)
 
-        print(
-            f"[{self.__class__.__name__}] {self.axes_limits_configuration.__name__} ..."
-        )
-        self.axes_limits_configuration()
-
-        print(
-            f"[{self.__class__.__name__}] {self.plot_lists_initialization.__name__} ..."
-        )
-        self.plot_lists_initialization()
-
-    def data_setup(self, teleop_filename, skip, rgb_crop_size_list):
-        cls_str = f"[{self.__class__.__name__}] {self.data_setup.__name__},"
-
-        print(f"{cls_str} set skip parameter ...")
+    def setup_data(self, rmb_filename, skip, rgb_crop_size_list):
         self.skip = skip
 
         # Use DataManager instead of RmbData because DataManager that puts all data in RAM is faster
-        print(f"{cls_str} initialize data manager ...")
         self.data_manager = DataManager(env=None)
 
-        print(f"{cls_str} load teleop data from file ...")
-        self.data_manager.load_data(teleop_filename)
+        print(f"[{self.__class__.__name__}] Load {rmb_filename}")
+        self.data_manager.load_data(rmb_filename)
 
-        print(f"{cls_str} retrieve sensor metadata ...")
         camera_names = self.data_manager.get_meta_data("camera_names").tolist()
         try:
             rgb_tactile_names = self.data_manager.get_meta_data(
@@ -121,9 +103,20 @@ class VisualizeData:
 
             self.rgb_crop_size_list = refine_size_list(rgb_crop_size_list)
 
-    def figure_axes_setup(self):
+        key_list = [
+            DataKey.TIME,
+            DataKey.COMMAND_JOINT_POS,
+            DataKey.MEASURED_JOINT_POS,
+            DataKey.MEASURED_JOINT_VEL,
+            DataKey.COMMAND_EEF_POSE,
+            DataKey.MEASURED_EEF_POSE,
+            DataKey.MEASURED_EEF_WRENCH,
+        ]
+        self.data_list = {key: [] for key in key_list}
+
+    def setup_plot(self):
         plt.rcParams["keymap.quit"] = ["q", "escape"]
-        self.frames = []
+
         self.fig, self.ax = plt.subplots(
             len(self.camera_names) + 1, 4, figsize=(16.0, 12.0), constrained_layout=True
         )
@@ -133,36 +126,13 @@ class VisualizeData:
             self.ax[ax_idx, 2] = self.fig.add_subplot(
                 len(self.camera_names) + 1, 4, 4 * (ax_idx + 1) - 1, projection="3d"
             )
-        self.break_flag = False
 
-    def video_writer_setup(self, output_mp4_filename, mp4_codec):
-        self.mp4_codec = mp4_codec
-        self.output_mp4_filename = output_mp4_filename
+        self.quit_flag = False
+        self.scatter_list = [None] * len(self.camera_names)
 
-        if self.output_mp4_filename:
-            base, ext = os.path.splitext(self.output_mp4_filename)
-            if ext.lower() != ".mp4":
-                print(
-                    f"[{self.__class__.__name__}] "
-                    "Warning: "
-                    f"The file '{self.output_mp4_filename}' has an incorrect extension '{ext}'. "
-                    f"Changing it to '{base}.mp4'."
-                )
-                self.output_mp4_filename = base + ".mp4"
+        self.init_axes_limits()
 
-            output_mp4_dirname = os.path.dirname(self.output_mp4_filename)
-            if output_mp4_dirname:
-                os.makedirs(os.path.dirname(self.output_mp4_filename), exist_ok=True)
-            width = int(self.fig.get_figwidth() * self.fig.dpi)
-            height = int(self.fig.get_figheight() * self.fig.dpi)
-            fourcc = cv2.VideoWriter_fourcc(*self.mp4_codec)
-            self.video_writer = cv2.VideoWriter(
-                self.output_mp4_filename, fourcc, 10, (width, height)
-            )
-        else:
-            self.video_writer = None
-
-    def axes_limits_configuration(self):
+    def init_axes_limits(self):
         time_range = (
             self.data_manager.get_data_seq(DataKey.TIME)[0],
             self.data_manager.get_data_seq(DataKey.TIME)[-1],
@@ -210,18 +180,32 @@ class VisualizeData:
             if self.ax[0, 3] in self.fig.axes:
                 self.ax[0, 3].remove()
 
-    def plot_lists_initialization(self):
-        key_list = [
-            DataKey.TIME,
-            DataKey.COMMAND_JOINT_POS,
-            DataKey.MEASURED_JOINT_POS,
-            DataKey.MEASURED_JOINT_VEL,
-            DataKey.COMMAND_EEF_POSE,
-            DataKey.MEASURED_EEF_POSE,
-            DataKey.MEASURED_EEF_WRENCH,
-        ]
-        self.data_list = {key: [] for key in key_list}
-        self.scatter_list = [None] * len(self.camera_names)
+    def setup_video(self, output_mp4_filename, mp4_codec):
+        self.mp4_codec = mp4_codec
+        self.output_mp4_filename = output_mp4_filename
+
+        if self.output_mp4_filename:
+            base, ext = os.path.splitext(self.output_mp4_filename)
+            if ext.lower() != ".mp4":
+                print(
+                    f"[{self.__class__.__name__}] "
+                    "Warning: "
+                    f"The file '{self.output_mp4_filename}' has an incorrect extension '{ext}'. "
+                    f"Changing it to '{base}.mp4'."
+                )
+                self.output_mp4_filename = base + ".mp4"
+
+            output_mp4_dirname = os.path.dirname(self.output_mp4_filename)
+            if output_mp4_dirname:
+                os.makedirs(os.path.dirname(self.output_mp4_filename), exist_ok=True)
+            width = int(self.fig.get_figwidth() * self.fig.dpi)
+            height = int(self.fig.get_figheight() * self.fig.dpi)
+            fourcc = cv2.VideoWriter_fourcc(*self.mp4_codec)
+            self.video_writer = cv2.VideoWriter(
+                self.output_mp4_filename, fourcc, 10, (width, height)
+            )
+        else:
+            self.video_writer = None
 
     def handle_rgb_image(self, camera_idx, time_idx, rgb_key):
         ax_idx = camera_idx + 1
@@ -319,7 +303,7 @@ class VisualizeData:
             range(0, len(self.data_manager.get_data_seq(DataKey.TIME)), self.skip),
             desc=self.ax[0, 0].plot.__name__,
         ):
-            if self.break_flag:
+            if self.quit_flag:
                 break
 
             for key in self.data_list.keys():
@@ -440,18 +424,10 @@ class VisualizeData:
 
     def key_event(self, event):
         if event.key in ["q", "escape"]:
-            self.break_flag = True
+            self.quit_flag = True
 
 
 if __name__ == "__main__":
     args = parse_argument()
-    print(f"{args=}")
-    viz = VisualizeData(
-        args.teleop_filename,
-        args.skip,
-        args.output_mp4_filename,
-        args.mp4_codec,
-        args.rgb_crop_size_list,
-        args.display_stored_pointcloud,
-    )
+    viz = VisualizeData(**vars(parse_argument()))
     viz.plot()
