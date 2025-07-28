@@ -260,6 +260,10 @@ class VisualizeData:
         ax_idx = camera_idx + 1
         if self.display_stored_pointcloud:
             pointcloud_key = DataKey.get_pointcloud_key(camera_name)
+            if pointcloud_key not in self.data_manager.all_data_seq.keys():
+                if self.ax[ax_idx, 2] in self.fig.axes:
+                    self.ax[ax_idx, 2].remove()
+                return
             xyzrgb_array = self.data_manager.get_data_seq(pointcloud_key)
             xyz_array = xyzrgb_array[time_idx, :, :3]
             rgb_array = xyzrgb_array[time_idx, :, 3:]

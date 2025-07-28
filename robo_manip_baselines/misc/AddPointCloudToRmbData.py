@@ -27,6 +27,12 @@ def parse_argument():
         help="path to data (*.hdf5 or *.rmb) or directory containing them",
     )
     parser.add_argument(
+        "--camera_name",
+        type=str,
+        default="front",
+        help="name of the camera to which the point cloud will be added",
+    )
+    parser.add_argument(
         "--image_size",
         type=int,
         nargs=2,
@@ -66,6 +72,7 @@ class AddPointCloudToRmbData:
     def __init__(
         self,
         path,
+        camera_name,
         image_size,
         min_bound=None,
         max_bound=None,
@@ -73,6 +80,7 @@ class AddPointCloudToRmbData:
         overwrite=False,
     ):
         self.path = path
+        self.camera_name = camera_name
         self.image_size = image_size
         self.min_bound = min_bound
         self.max_bound = max_bound
@@ -80,92 +88,59 @@ class AddPointCloudToRmbData:
         self.overwrite = overwrite
 
     def run(self):
+        pc_key = DataKey.get_pointcloud_key(self.camera_name)
         print(
-            f"[{self.__class__.__name__}] Store pointcloud generated from RGB and depth images."
+            f"[{self.__class__.__name__}] Add pointcloud '{pc_key}' generated from RGB and depth images."
         )
         rmb_path_list = find_rmb_files(self.path)
         for rmb_path in tqdm(rmb_path_list):
             tqdm.write(f"[{self.__class__.__name__}] Open {rmb_path}")
             with RmbData(rmb_path, mode="r+") as rmb_data:
-                pointclouds = self.get_pointclouds(rmb_data)
-                for pc_key in pointclouds.keys():
-                    if pc_key in rmb_data.keys():
-                        if self.overwrite:
-                            del rmb_data.h5file[pc_key]
-                        else:
-                            raise ValueError(
-                                f"[{self.__class__.__name__}] Pointcloud already exists: {rmb_path} (use --overwrite to replace)"
-                            )
+                if pc_key in rmb_data.keys():
+                    if self.overwrite:
+                        del rmb_data.h5file[pc_key]
+                    else:
+                        raise ValueError(
+                            f"[{self.__class__.__name__}] Pointcloud already exists: {rmb_path} (use --overwrite to replace)"
+                        )
 
-                    rmb_data.h5file[pc_key] = pointclouds[pc_key]
-                    rmb_data.attrs[pc_key + "_image_size"] = self.image_size
-                    rmb_data.attrs[pc_key + "_min_bound"] = self.min_bound
-                    rmb_data.attrs[pc_key + "_max_bound"] = self.max_bound
+                pointclouds = self.get_pointclouds(rmb_data)
+
+                rmb_data.h5file[pc_key] = pointclouds
+                rmb_data.attrs[pc_key + "_image_size"] = self.image_size
+                rmb_data.attrs[pc_key + "_min_bound"] = self.min_bound
+                rmb_data.attrs[pc_key + "_max_bound"] = self.max_bound
 
     def get_pointclouds(self, rmb_data):
         # Load images
-        camera_names = rmb_data.attrs["camera_names"]
-        rgb_image_list = np.stack(
-            [
-                rmb_data[DataKey.get_rgb_image_key(camera_name)][:]
-                for camera_name in camera_names
-            ],
-            axis=0,
-        )
-        depth_image_list = np.stack(
-            [
-                rmb_data[DataKey.get_depth_image_key(camera_name)][:]
-                for camera_name in camera_names
-            ],
-            axis=0,
-        )
-        fovy_list = [
-            rmb_data.attrs[DataKey.get_depth_image_key(camera_name) + "_fovy"]
-            for camera_name in camera_names
-        ]
+        rgb_image_seq = rmb_data[DataKey.get_rgb_image_key(self.camera_name)][:]
+        depth_image_seq = rmb_data[DataKey.get_depth_image_key(self.camera_name)][:]
+        fovy = rmb_data.attrs[DataKey.get_depth_image_key(self.camera_name) + "_fovy"]
 
         # Resize images
-        K, T, H, W, C = rgb_image_list.shape
-        rgb_image_list = np.array(
-            [
-                cv2.resize(image, self.image_size)
-                for image in rgb_image_list.reshape(-1, H, W, C)
-            ]
-        ).reshape(K, T, *self.image_size[::-1], C)
-        K, T, H, W = depth_image_list.shape
-        depth_image_list = np.array(
-            [
-                cv2.resize(image, self.image_size)
-                for image in depth_image_list.reshape(-1, H, W)
-            ]
-        ).reshape(K, T, *self.image_size[::-1])
+        rgb_image_seq = np.array(
+            [cv2.resize(image, self.image_size) for image in rgb_image_seq]
+        )
+        depth_image_seq = np.array(
+            [cv2.resize(image, self.image_size) for image in depth_image_seq]
+        )
 
-        # Generate pointclouds
-        pointclouds = {}
-        for rgb_image, depth_image, fovy, camera_name in zip(
-            rgb_image_list, depth_image_list, fovy_list, camera_names
-        ):
-            pointcloud = []
-            for single_rgb_image, single_depth_image in zip(rgb_image, depth_image):
-                # Convert to pointcloud
-                single_pointcloud = np.concat(
-                    convert_depth_image_to_pointcloud(
-                        single_depth_image, fovy, single_rgb_image
-                    ),
-                    axis=1,
-                )
-                # Crop and downsample pointcloud
-                single_pointcloud = crop_pointcloud_bb(
-                    single_pointcloud, self.min_bound, self.max_bound
-                )
-                single_pointcloud = downsample_pointcloud_fps(
-                    single_pointcloud, self.num_points
-                )
-                pointcloud.append(single_pointcloud.tolist())
-            pc_key = DataKey.get_pointcloud_key(camera_name)
-            pointclouds[pc_key] = pointcloud
+        # Generate pointcloud
+        pointclouds = []
+        for rgb_image, depth_image in zip(rgb_image_seq, depth_image_seq):
+            # Convert to pointcloud
+            pointcloud = np.concat(
+                convert_depth_image_to_pointcloud(depth_image, fovy, rgb_image),
+                axis=1,
+            )
 
-        return pointclouds
+            # Crop and downsample pointcloud
+            pointcloud = crop_pointcloud_bb(pointcloud, self.min_bound, self.max_bound)
+            pointcloud = downsample_pointcloud_fps(pointcloud, self.num_points)
+
+            pointclouds.append(pointcloud)
+
+        return np.array(pointclouds)
 
 
 if __name__ == "__main__":
