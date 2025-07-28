@@ -100,21 +100,21 @@ class TrainSarnn(TrainBase):
                 env_name = rmb_data.attrs["env"]
 
             if env_name == "MujocoUR5eCableEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [300, 300]
             elif env_name == "MujocoUR5eRingEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [420, 300]
             elif env_name == "MujocoUR5eParticleEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [480, 300]
             elif env_name == "MujocoUR5eClothEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [450, 320]
             elif env_name == "MujocoUR5eDoorEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [420, 340]
             elif env_name == "MujocoUR5eToolboxEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [440, 320]
             elif env_name == "MujocoUR5eCabinetEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [420, 320]
             elif env_name == "MujocoUR5eInsertEnv":
-                self.args.image_crop_size_list = [280, 280]
+                self.args.image_crop_size_list = [320, 320]
             else:
                 self.args.image_crop_size_list = [280, 280]
 
