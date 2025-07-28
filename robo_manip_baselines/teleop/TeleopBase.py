@@ -95,6 +95,7 @@ class TeleopPhase(PhaseBase):
             print(
                 f"[{self.op.__class__.__name__}] Finish teleoperation. duration: {self.get_elapsed_duration():.1f} [s]"
             )
+            self.op.episode_duration = self.get_elapsed_duration()
             return True
         else:
             return False
@@ -117,6 +118,10 @@ class EndTeleopPhase(PhaseBase):
         if ((not self.op.args.save_success_only) or (self.op.reward >= 1.0)) and (
             self.op.key == ord("s")
         ):
+            self.op.result["success"].append(bool(self.op.reward >= 1.0))
+            self.op.result["reward"].append(float(self.op.reward))
+            self.op.result["duration"].append(self.op.episode_duration)
+
             self.op.save_data()
             self.op.reset_flag = True
         elif self.op.key == ord("f"):
@@ -144,9 +149,13 @@ class ReplayPhase(PhaseBase):
         self.op.teleop_time_idx += 1
 
     def check_transition(self):
-        return self.op.teleop_time_idx == len(
+        if self.op.teleop_time_idx == len(
             self.op.replay_data_manager.get_data_seq(DataKey.TIME)
-        )
+        ):
+            self.op.episode_duration = self.get_elapsed_duration()
+            return True
+        else:
+            return False
 
 
 class EndReplayPhase(PhaseBase):
@@ -160,6 +169,10 @@ class EndReplayPhase(PhaseBase):
 
     def post_update(self):
         if self.op.auto_mode or (self.op.key == ord("n")):
+            self.op.result["success"].append(bool(self.op.reward >= 1.0))
+            self.op.result["reward"].append(float(self.op.reward))
+            self.op.result["duration"].append(self.op.episode_duration)
+
             if self.op.args.save_replay:
                 self.op.save_data()
             self.op.replay_file_idx += 1
@@ -193,6 +206,7 @@ class TeleopBase(ABC):
         )
         self.data_manager.setup_camera_info()
         self.datetime_now = datetime.datetime.now()
+        self.result = {key: [] for key in ("success", "reward", "duration")}
 
         if self.args.replay_log is not None:
             # Setup data manager for replay
@@ -201,6 +215,7 @@ class TeleopBase(ABC):
 
             # Set log files for replay
             self.replay_filenames = find_rmb_files(self.args.replay_log)
+            self.replay_filenames *= self.args.replay_repeat_count
             self.replay_file_idx = 0
 
         # Setup phase manager
@@ -276,6 +291,13 @@ class TeleopBase(ABC):
         )
 
         parser.add_argument(
+            "--result_filename",
+            type=str,
+            default=None,
+            help="File path (*.yaml) to save rollout results (default: do not save)",
+        )
+
+        parser.add_argument(
             "--input_device",
             type=str,
             default="spacemouse",
@@ -320,6 +342,12 @@ class TeleopBase(ABC):
             type=str,
             default=None,
             help="log file path when replaying log motion",
+        )
+        parser.add_argument(
+            "--replay_repeat_count",
+            type=int,
+            default=1,
+            help="number of times to repeat replay per file",
         )
         parser.add_argument(
             "--auto_replay",
@@ -458,6 +486,13 @@ class TeleopBase(ABC):
 
             if (not self.auto_mode) and (iteration_duration < self.env.unwrapped.dt):
                 time.sleep(self.env.unwrapped.dt - iteration_duration)
+
+        if self.args.result_filename is not None:
+            print(
+                f"[{self.__class__.__name__}] Save the teleoperation results: {self.args.result_filename}"
+            )
+            with open(self.args.result_filename, "w") as result_file:
+                yaml.dump(self.result, result_file)
 
         self.print_statistics()
 
