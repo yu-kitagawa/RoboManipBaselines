@@ -2,22 +2,9 @@ import argparse
 import importlib
 import importlib.util
 import os
-import re
 import sys
 
 import yaml
-
-
-def camel_to_snake(name):
-    """Converts camelCase or PascalCase to snake_case (also converts the first letter to lowercase)"""
-    name = re.sub(
-        r"([a-z0-9])([A-Z])", r"\1_\2", name
-    )  # Insert '_' between a lowercase/number and an uppercase letter
-    name = re.sub(
-        r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name
-    )  # Insert '_' between consecutive uppercase letters followed by a lowercase letter
-    name = name[0].lower() + name[1:]  # Convert the first letter to lowercase
-    return name.lower()
 
 
 def main():
@@ -39,7 +26,14 @@ def main():
         type=str,
         nargs="?",
         default=None,
-        choices=["Mlp", "Sarnn", "Act", "DiffusionPolicy", "OpenvlaOft", "Gr00t", "Pi0"],
+        choices=[
+            "Mlp",
+            "Sarnn",
+            "Act",
+            "MtAct",
+            "DiffusionPolicy",
+            "DiffusionPolicy3d",
+        ],
         help="policy",
     )
     parser.add_argument(
@@ -73,7 +67,7 @@ def main():
         )
 
     # This includes pytorch import, so it must be later than isaac import
-    from robo_manip_baselines.common import remove_prefix
+    from robo_manip_baselines.common import camel_to_snake, remove_prefix
 
     operation_module = importlib.import_module(
         f"robo_manip_baselines.envs.operation.Operation{args.env}"
