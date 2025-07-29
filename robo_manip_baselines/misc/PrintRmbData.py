@@ -1,10 +1,8 @@
 import argparse
-import glob
-import os
 
 import numpy as np
 
-from robo_manip_baselines.common import DataKey, RmbData
+from robo_manip_baselines.common import DataKey, RmbData, find_rmb_files
 
 
 def parse_argument():
@@ -32,29 +30,13 @@ class PrintRmbData:
         self.only_stats = only_stats
 
     def run(self):
-        if os.path.isdir(self.path):
-            file_list = sorted(
-                [
-                    f
-                    for f in glob.glob(f"{self.path}/**/*.*", recursive=True)
-                    if f.endswith(".rmb")
-                    or (f.endswith(".hdf5") and not f.endswith(".rmb.hdf5"))
-                ]
-            )
-            if not file_list:
-                print(
-                    f"[{self.__class__.__name__}] No target files found in directory: {self.path}"
-                )
-                return
-        else:
-            file_list = [self.path]
-
+        rmb_path_list = find_rmb_files(self.path)
         stats = {entry: [] for entry in ["episode_len", "success_once", "success_last"]}
-        for file_path in file_list:
-            print(f"[{self.__class__.__name__}] Open {file_path}")
+        for rmb_path in rmb_path_list:
+            print(f"[{self.__class__.__name__}] Open {rmb_path}")
 
             try:
-                with RmbData(file_path) as rmb_data:
+                with RmbData(rmb_path) as rmb_data:
                     stats["episode_len"].append(len(rmb_data[DataKey.TIME]))
                     if DataKey.REWARD in rmb_data.keys():
                         stats["success_once"].append(
@@ -75,9 +57,9 @@ class PrintRmbData:
                     print("  Data:")
                     for k in rmb_data.keys():
                         v = rmb_data[k]
-                        print(f"    - {k}: {v.shape}")
+                        print(f"    - {k}: {v.shape}, [{v.dtype}]")
             except (OSError, IOError, ValueError) as e:
-                print(f"[Error] Failed to load {file_path}: {e}")
+                print(f"[Error] Failed to load {rmb_path}: {e}")
 
         stats = {k: np.array(v) for k, v in stats.items()}
         print(f"[{self.__class__.__name__}] Statistics of the entire data set:")
@@ -86,8 +68,8 @@ class PrintRmbData:
             f"min: {stats['episode_len'].min()}, max: {stats['episode_len'].max()}"
         )
         print(
-            f"  - success once: {np.sum(stats['success_once'])} / {len(file_list)},  "
-            f"last: {np.sum(stats['success_last'])} / {len(file_list)}"
+            f"  - success once: {np.sum(stats['success_once'])} / {len(rmb_path_list)},  "
+            f"last: {np.sum(stats['success_last'])} / {len(rmb_path_list)}"
         )
 
 

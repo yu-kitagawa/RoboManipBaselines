@@ -29,7 +29,7 @@ from .utils.MathUtils import (
 from .utils.VisionUtils import (
     crop_and_resize,
     convert_depth_image_to_color_image,
-    convert_depth_image_to_point_cloud,
+    convert_depth_image_to_pointcloud,
 )
 from .utils.DataUtils import (
     normalize_data,
@@ -38,4 +38,6 @@ from .utils.DataUtils import (
     get_skipped_single_data,
 )
 from .utils.EnvUtils import get_env_names
-from .utils.MiscUtils import remove_prefix, remove_suffix
+from .utils.FileUtils import find_rmb_files
+from .utils.MiscUtils import remove_prefix, remove_suffix, camel_to_snake
+# Since ./utils/Vision3dUtils.py requires importing pytorch3d, it should be imported separately only when needed and is not imported here.

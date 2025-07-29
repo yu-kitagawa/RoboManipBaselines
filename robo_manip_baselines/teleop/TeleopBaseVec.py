@@ -12,12 +12,12 @@ from .TeleopBase import TeleopBase
 class TeleopBaseVec(TeleopBase):
     DataManagerClass = DataManagerVec
 
-    def setup_args(self, parser=None, argv=None):
-        super().setup_args(parser, argv)
+    def setup_args(self):
+        super().setup_args()
 
         if self.args.replay_log is not None:
             raise NotImplementedError(
-                f'[{self.__class__.__name__}] The "replay_log" option is not supported.'
+                f"[{self.__class__.__name__}] The 'replay_log' option is not supported."
             )
 
     def run(self):
@@ -54,11 +54,12 @@ class TeleopBaseVec(TeleopBase):
             self.info_list = self.env.unwrapped.info_list
             self.obs = self.obs_list[self.env.unwrapped.rep_env_idx]
             self.info = self.info_list[self.env.unwrapped.rep_env_idx]
+            self.reward = 0.0
 
             self.draw_image()
 
-            if self.args.enable_3d_plot:
-                self.draw_point_cloud()
+            if self.args.plot_pointcloud:
+                self.draw_pointcloud()
 
             self.phase_manager.post_update()
 

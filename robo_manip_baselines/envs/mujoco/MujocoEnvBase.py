@@ -43,6 +43,7 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
 
         self.setup_robot(init_qpos)
         self.setup_camera()
+        self.setup_intensity_tactile()
 
     @abstractmethod
     def setup_robot(self, init_qpos):
@@ -68,6 +69,15 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
         self.mujoco_renderer._viewers["dummy"] = None
 
         self._first_render = True
+
+    def setup_intensity_tactile(self):
+        self.intensity_tactile_names = []
+        for sensor_id in range(self.model.nsensor):
+            sensor = self.model.sensor(sensor_id)
+            if ("tactile" in sensor.name) and (
+                sensor.type == mujoco.mjtSensor.mjSENS_PLUGIN
+            ):
+                self.intensity_tactile_names.append(sensor.name)
 
     def step(self, action):
         self.do_simulation(action, self.frame_skip)
@@ -96,6 +106,7 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
         if len(self.camera_names) == 0:
             return info
 
+        # Set camera images
         info["rgb_images"] = {}
         info["depth_images"] = {}
         for camera_name, camera in self.cameras.items():
@@ -113,6 +124,33 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
             far = self.model.vis.map.zfar * extent
             depth_image = near / (1 - depth_image * (1 - near / far))
             info["depth_images"][camera_name] = depth_image
+
+        # Set tactile intensity measurements
+        if len(self.intensity_tactile_names) > 0:
+            info["intensity_tactile"] = {}
+        for intensity_tactile_name in self.intensity_tactile_names:
+            # Get tactile data
+            tactile_id = mujoco.mj_name2id(
+                self.model, mujoco.mjtObj.mjOBJ_SENSOR, intensity_tactile_name
+            )
+            tactile_adr = self.model.sensor_adr[tactile_id]
+            tactile_dim = int(self.model.sensor_dim[tactile_id] / 7)
+            tactile_data = self.data.sensordata[tactile_adr : tactile_adr + tactile_dim]
+
+            # Get tactile shape
+            plugin_id = self.model.sensor_plugin[tactile_id]
+            if plugin_id < 0:
+                raise ValueError(
+                    f"[{self.__class__.__name__}] Tactile sensor {intensity_tactile_name} is not plugin-based."
+                )
+            plugin_attr = self.model.plugin_attr[
+                self.model.plugin_attradr[plugin_id] :
+            ].tobytes()
+            tactile_shape = tuple(map(int, plugin_attr.split(b"\x00", 1)[0].split()))
+
+            info["intensity_tactile"][intensity_tactile_name] = tactile_data.reshape(
+                tactile_shape
+            )
 
         return info
 
@@ -182,8 +220,8 @@ class MujocoEnvBase(EnvDataMixin, MujocoEnv, ABC):
         return list(self.cameras.keys())
 
     @property
-    def tactile_names(self):
-        """Get tactile sensor names."""
+    def rgb_tactile_names(self):
+        """Get names of tactile sensors with RGB output."""
         return []
 
     def get_camera_fovy(self, camera_name):

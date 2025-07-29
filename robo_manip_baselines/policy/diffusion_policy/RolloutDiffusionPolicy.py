@@ -1,9 +1,15 @@
+import os
+import sys
+
 import cv2
 import matplotlib.pylab as plt
 import numpy as np
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
+sys.path.append(
+    os.path.join(os.path.dirname(__file__), "../../../third_party/diffusion_policy")
+)
 from diffusion_policy.policy.diffusion_unet_hybrid_image_policy import (
     DiffusionUnetHybridImagePolicy,
 )

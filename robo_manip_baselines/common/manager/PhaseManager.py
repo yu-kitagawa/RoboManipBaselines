@@ -10,7 +10,9 @@ class PhaseManager:
     def __init__(self, phase_order):
         self.phase_order = phase_order
 
-        self.reset()
+        # Assuming that reset() is explicitly called after construct,
+        # reset() is not called here to avoid duplicate initialization of the initial state.
+        # self.reset()
 
     def reset(self):
         self._set_phase(0)

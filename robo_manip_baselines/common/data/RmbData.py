@@ -80,8 +80,9 @@ class RmbData:
         def dtype(self):
             return np.float32
 
-    def __init__(self, path, enable_cache=False):
+    def __init__(self, path, enable_cache=False, mode="r"):
         self.path = path
+        self.mode = mode
         self.enable_cache = enable_cache
 
         _, ext = os.path.splitext(self.path.rstrip("/"))
@@ -107,7 +108,7 @@ class RmbData:
             path = self.path
         else:
             path = os.path.join(self.path, "main.rmb.hdf5")
-        self.h5file = h5py.File(path, "r")
+        self.h5file = h5py.File(path, self.mode)
 
     def close(self):
         if self.h5file is None:

@@ -52,13 +52,13 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
 
             self.cameras[camera_name] = camera
 
-    def setup_gelsight(self, tactile_ids):
-        self.tactiles = {}
+    def setup_gelsight(self, gelsight_ids):
+        self.rgb_tactiles = {}
 
-        if tactile_ids is None:
+        if gelsight_ids is None:
             return
 
-        for tactile_name, tactile_id in tactile_ids.items():
+        for rgb_tactile_name, gelsight_id in gelsight_ids.items():
             for device_name in os.listdir("/sys/class/video4linux"):
                 real_device_name = os.path.realpath(
                     "/sys/class/video4linux/" + device_name + "/name"
@@ -66,26 +66,26 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                 with (
                     open(real_device_name, "rt") as device_name_file
                 ):  # "rt": read-text mode ("t" is default, so "r" alone is the same)
-                    detected_tactile_id = device_name_file.read().rstrip()
-                if tactile_id in detected_tactile_id:
+                    detected_gelsight_id = device_name_file.read().rstrip()
+                if gelsight_id in detected_gelsight_id:
                     tactile_num = int(re.search("\d+$", device_name).group(0))
                     print(
-                        f"[{self.__class__.__name__}] Found GelSight sensor. ID: {detected_tactile_id}, device: {device_name}, num: {tactile_num}"
+                        f"[{self.__class__.__name__}] Found GelSight sensor. ID: {detected_gelsight_id}, device: {device_name}, num: {tactile_num}"
                     )
 
-                    tactile = cv2.VideoCapture(tactile_num)
-                    if tactile is None or not tactile.isOpened():
+                    rgb_tactile = cv2.VideoCapture(tactile_num)
+                    if rgb_tactile is None or not rgb_tactile.isOpened():
                         print(
                             f"[{self.__class__.__name__}] Unable to open video source of GelSight sensor."
                         )
                         continue
 
-                    self.tactiles[tactile_name] = tactile
+                    self.rgb_tactiles[rgb_tactile_name] = rgb_tactile
                     break
 
-            if tactile_name not in self.tactiles:
+            if rgb_tactile_name not in self.rgb_tactiles:
                 raise RuntimeError(
-                    f"[{self.__class__.__name__}] Specified GelSight (name: {tactile_name}, ID: {tactile_id}) not detected."
+                    f"[{self.__class__.__name__}] Specified GelSight (name: {rgb_tactile_name}, ID: {gelsight_id}) not detected."
                 )
 
     def get_input_device_kwargs(self, input_device_name):
@@ -175,7 +175,7 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
     def _get_info(self):
         info = {}
 
-        if len(self.camera_names) + len(self.tactile_names) == 0:
+        if len(self.camera_names) + len(self.rgb_tactile_names) == 0:
             return info
 
         # Get images
@@ -189,10 +189,12 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                     camera_name
                 )
 
-            for tactile_name, tactile in self.tactiles.items():
+            for rgb_tactile_name, rgb_tactile in self.rgb_tactiles.items():
                 futures[
-                    executor.submit(self.get_tactile_image, tactile_name, tactile)
-                ] = tactile_name
+                    executor.submit(
+                        self.get_rgb_tactile_image, rgb_tactile_name, rgb_tactile
+                    )
+                ] = rgb_tactile_name
 
             for future in concurrent.futures.as_completed(futures):
                 name, rgb_image, depth_image = future.result()
@@ -206,15 +208,15 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         depth_image = (1e-3 * depth_image[:, :, 0]).astype(np.float32)  # [m]
         return camera_name, rgb_image, depth_image
 
-    def get_tactile_image(self, tactile_name, tactile):
-        ret, rgb_image = tactile.read()
+    def get_rgb_tactile_image(self, rgb_tactile_name, rgb_tactile):
+        ret, rgb_image = rgb_tactile.read()
         if not ret:
             raise RuntimeError(
                 f"[{self.__class__.__name__}] Failed to read tactile image."
             )
         image_size = (640, 480)
         rgb_image = cv2.resize(rgb_image, image_size)
-        return tactile_name, rgb_image, None
+        return rgb_tactile_name, rgb_image, None
 
     def get_joint_pos_from_obs(self, obs):
         """Get joint position from observation."""
@@ -255,9 +257,9 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         return list(self.cameras.keys())
 
     @property
-    def tactile_names(self):
-        """Get tactile sensor names."""
-        return list(self.tactiles.keys())
+    def rgb_tactile_names(self):
+        """Get names of tactile sensors with RGB output."""
+        return list(self.rgb_tactiles.keys())
 
     def get_camera_fovy(self, camera_name):
         """Get vertical field-of-view of the camera."""

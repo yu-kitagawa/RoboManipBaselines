@@ -3,34 +3,41 @@ import copy
 import os
 import sys
 
+import numpy as np
 import torch
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from diffusers.schedulers.scheduling_ddim import DDIMScheduler
+from omegaconf import OmegaConf
 from tqdm import tqdm
 
 sys.path.append(
-    os.path.join(os.path.dirname(__file__), "../../../third_party/diffusion_policy")
+    os.path.join(
+        os.path.dirname(__file__),
+        "../../../third_party/3D-Diffusion-Policy/3D-Diffusion-Policy",
+    )
 )
-from diffusion_policy.common.pytorch_util import dict_apply, optimizer_to
-from diffusion_policy.model.common.lr_scheduler import get_scheduler
-from diffusion_policy.model.diffusion.ema_model import EMAModel
-from diffusion_policy.policy.diffusion_unet_hybrid_image_policy import (
-    DiffusionUnetHybridImagePolicy,
-)
-from robo_manip_baselines.common import DataKey, TrainBase
+from diffusion_policy_3d.common.pytorch_util import dict_apply, optimizer_to
+from diffusion_policy_3d.model.common.lr_scheduler import get_scheduler
+from diffusion_policy_3d.model.diffusion.ema_model import EMAModel
+from diffusion_policy_3d.policy.dp3 import DP3
+from robo_manip_baselines.common import DataKey, RmbData, TrainBase
 
-from .DiffusionPolicyDataset import DiffusionPolicyDataset
+from .DiffusionPolicy3dDataset import DiffusionPolicy3dDataset
 
 
-class TrainDiffusionPolicy(TrainBase):
-    DatasetClass = DiffusionPolicyDataset
+class TrainDiffusionPolicy3d(TrainBase):
+    DatasetClass = DiffusionPolicy3dDataset
 
     def set_additional_args(self, parser):
+        for action in parser._actions:
+            if action.dest == "camera_names":
+                action.nargs = 1
+
         parser.set_defaults(enable_rmb_cache=True)
 
         parser.set_defaults(norm_type="limits")
 
-        parser.set_defaults(batch_size=64)
-        parser.set_defaults(num_epochs=2000)
+        parser.set_defaults(batch_size=128)
+        parser.set_defaults(num_epochs=3000)
         parser.set_defaults(lr=1e-4)
 
         parser.add_argument(
@@ -61,30 +68,88 @@ class TrainDiffusionPolicy(TrainBase):
         )
 
         parser.add_argument(
-            "--image_size",
-            type=int,
-            nargs=2,
-            default=[320, 240],
-            help="Image size (width, height) to be resized before crop. In the case of multiple image inputs, it is assumed that all images share the same size.",
+            "--use_pc_color",
+            action="store_true",
+            help="Whether to use color information of point cloud",
         )
+
         parser.add_argument(
-            "--image_crop_size",
+            "--encoder_output_dim",
             type=int,
-            nargs=2,
-            default=[288, 216],
-            help="Image size (width, height) to be cropped after resize. In the case of multiple image inputs, it is assumed that all images share the same size.",
+            nargs=1,
+            default=64,
+            help="output dimensions of encoder in policy",
         )
 
     def setup_model_meta_info(self):
         super().setup_model_meta_info()
 
-        self.model_meta_info["data"]["image_size"] = self.args.image_size
-        self.model_meta_info["data"]["image_crop_size"] = self.args.image_crop_size
+        # Retrieve point cloud information
+        pc_key = DataKey.get_pointcloud_key(self.args.camera_names[0])
+        num_points = None
+        image_size = None
+        min_bound = None
+        max_bound = None
+        for filename in self.all_filenames:
+            with RmbData(filename) as rmb_data:
+                num_points_new = rmb_data[pc_key].shape[1]
+                if num_points is None:
+                    num_points = num_points_new
+                elif num_points != num_points_new:
+                    raise ValueError(
+                        f"[{self.__class__.__name__}] num_points is inconsistent in dataset: {num_points} != {num_points_new}"
+                    )
+
+                image_size_new = rmb_data.attrs[pc_key + "_image_size"]
+                if image_size is None:
+                    image_size = image_size_new
+                elif not np.array_equal(image_size, image_size_new):
+                    raise ValueError(
+                        f"[{self.__class__.__name__}] image_size is inconsistent in dataset: {image_size} != {image_size_new}"
+                    )
+
+                min_bound_new = rmb_data.attrs[pc_key + "_min_bound"]
+                if min_bound is None:
+                    min_bound = min_bound_new
+                elif not np.allclose(min_bound, min_bound_new):
+                    raise ValueError(
+                        f"[{self.__class__.__name__}] min_bound is inconsistent in dataset: {min_bound} != {min_bound_new}"
+                    )
+
+                max_bound_new = rmb_data.attrs[pc_key + "_max_bound"]
+                if max_bound is None:
+                    max_bound = max_bound_new
+                elif not np.allclose(max_bound, max_bound_new):
+                    raise ValueError(
+                        f"[{self.__class__.__name__}] max_bound is inconsistent in dataset: {max_bound} != {max_bound_new}"
+                    )
+
         self.model_meta_info["data"]["horizon"] = self.args.horizon
         self.model_meta_info["data"]["n_obs_steps"] = self.args.n_obs_steps
         self.model_meta_info["data"]["n_action_steps"] = self.args.n_action_steps
+        self.model_meta_info["data"]["use_pc_color"] = self.args.use_pc_color
+        self.model_meta_info["data"]["num_points"] = num_points
+        self.model_meta_info["data"]["n_point_dim"] = 6 if self.args.use_pc_color else 3
+        self.model_meta_info["data"]["image_size"] = image_size
+        self.model_meta_info["data"]["min_bound"] = min_bound
+        self.model_meta_info["data"]["max_bound"] = max_bound
 
         self.model_meta_info["policy"]["use_ema"] = self.args.use_ema
+
+    def set_data_stats(self):
+        super().set_data_stats()
+
+        # Load dataset
+        pc_key = DataKey.get_pointcloud_key(self.args.camera_names[0])
+        all_pointcloud = []
+        for filename in self.all_filenames:
+            with RmbData(filename) as rmb_data:
+                # Load pointcloud
+                pointcloud = rmb_data[pc_key][:: self.args.skip]
+                all_pointcloud.append(pointcloud.reshape(-1, pointcloud.shape[-1]))
+        all_pointcloud = np.concatenate(all_pointcloud, dtype=np.float64)
+
+        self.model_meta_info["pointcloud"] = self.calc_stats_from_seq(all_pointcloud)
 
     def get_extra_norm_config(self):
         if self.args.norm_type == "limits":
@@ -97,35 +162,48 @@ class TrainDiffusionPolicy(TrainBase):
 
     def setup_policy(self):
         # Set policy args
-        shape_meta = {
-            "obs": {},
-            "action": {"shape": [len(self.model_meta_info["action"]["example"])]},
-        }
+        shape_meta = OmegaConf.create(
+            {
+                "obs": {},
+                "action": {"shape": [len(self.model_meta_info["action"]["example"])]},
+            }
+        )
         if len(self.args.state_keys) > 0:
             shape_meta["obs"]["state"] = {
                 "shape": [len(self.model_meta_info["state"]["example"])],
                 "type": "low_dim",
             }
-        for camera_name in self.args.camera_names:
-            shape_meta["obs"][DataKey.get_rgb_image_key(camera_name)] = {
-                "shape": [3, self.args.image_size[1], self.args.image_size[0]],
-                "type": "rgb",
+        pointcloud_shape = (
+            self.model_meta_info["data"]["num_points"],
+            self.model_meta_info["data"]["n_point_dim"],
+        )
+        shape_meta["obs"]["point_cloud"] = {
+            "shape": pointcloud_shape,
+            "type": "point_cloud",
+        }
+        pointcloud_encoder_conf = OmegaConf.create(
+            {
+                "in_channels": self.model_meta_info["data"]["n_point_dim"],
+                "out_channels": self.args.encoder_output_dim,
+                "use_layernorm": True,
+                "final_norm": "layernorm",
+                "normal_channel": False,
             }
+        )
         self.model_meta_info["policy"]["args"] = {
             "shape_meta": shape_meta,
             "horizon": self.args.horizon,
             "n_action_steps": self.args.n_action_steps,
             "n_obs_steps": self.args.n_obs_steps,
-            "num_inference_steps": 100,
+            "num_inference_steps": 10,
             "obs_as_global_cond": True,
-            "crop_shape": self.args.image_crop_size[::-1],  # (height, width)
             "diffusion_step_embed_dim": 128,
             "down_dims": [512, 1024, 2048],
             "kernel_size": 5,
             "n_groups": 8,
-            "cond_predict_scale": True,
-            "obs_encoder_group_norm": True,
-            "eval_fixed_crop": True,
+            "pointcloud_encoder_cfg": pointcloud_encoder_conf,
+            "use_pc_color": self.args.use_pc_color,
+            "encoder_output_dim": self.args.encoder_output_dim,
         }
         self.model_meta_info["policy"]["noise_scheduler_args"] = {
             "beta_end": 0.02,
@@ -133,15 +211,16 @@ class TrainDiffusionPolicy(TrainBase):
             "beta_start": 0.0001,
             "clip_sample": True,
             "num_train_timesteps": 100,
-            "prediction_type": "epsilon",
-            "variance_type": "fixed_small",
+            "set_alpha_to_one": True,
+            "prediction_type": "sample",
+            "steps_offset": 0,
         }
 
         # Construct policy
-        noise_scheduler = DDPMScheduler(
+        noise_scheduler = DDIMScheduler(
             **self.model_meta_info["policy"]["noise_scheduler_args"]
         )
-        self.policy = DiffusionUnetHybridImagePolicy(
+        self.policy = DP3(
             noise_scheduler=noise_scheduler,
             **self.model_meta_info["policy"]["args"],
         )
@@ -185,8 +264,9 @@ class TrainDiffusionPolicy(TrainBase):
         print(
             f"  - horizon: {self.args.horizon}, obs steps: {self.args.n_obs_steps}, action steps: {self.args.n_action_steps}"
         )
+        data_info = self.model_meta_info["data"]
         print(
-            f"  - image size: {self.args.image_size}, image crop size: {self.args.image_crop_size}"
+            f"  - with color: {self.args.use_pc_color}, num points: {data_info['num_points']}, image size: {data_info['image_size']}, min bound: {data_info['min_bound']}, max bound: {data_info['max_bound']}"
         )
 
     def train_loop(self):
@@ -194,7 +274,7 @@ class TrainDiffusionPolicy(TrainBase):
             # Run train step
             batch_result_list = []
             for data in self.train_dataloader:
-                loss = self.policy.compute_loss(dict_apply(data, lambda x: x.cuda()))
+                loss, _ = self.policy.compute_loss(dict_apply(data, lambda x: x.cuda()))
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
@@ -217,7 +297,7 @@ class TrainDiffusionPolicy(TrainBase):
             with torch.inference_mode():
                 batch_result_list = []
                 for data in self.val_dataloader:
-                    loss = policy.compute_loss(dict_apply(data, lambda x: x.cuda()))
+                    loss, _ = policy.compute_loss(dict_apply(data, lambda x: x.cuda()))
                     batch_result_list.append(self.detach_batch_result({"loss": loss}))
                 epoch_summary = self.log_epoch_summary(batch_result_list, "val", epoch)
 

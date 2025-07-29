@@ -232,7 +232,7 @@ class DataManager:
     def setup_camera_info(self):
         """Set camera info."""
         self.meta_data["camera_names"] = self.env.unwrapped.camera_names
-        self.meta_data["tactile_names"] = self.env.unwrapped.tactile_names
+        self.meta_data["rgb_tactile_names"] = self.env.unwrapped.rgb_tactile_names
         for camera_name in self.env.unwrapped.camera_names:
             depth_key = DataKey.get_depth_image_key(camera_name)
             self.meta_data[depth_key + "_fovy"] = self.env.unwrapped.get_camera_fovy(

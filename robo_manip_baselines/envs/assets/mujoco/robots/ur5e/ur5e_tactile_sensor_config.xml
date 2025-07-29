@@ -1,0 +1,21 @@
+<mujoco model="ur5e_tactile_sensor_config">
+  <extension>
+    <plugin plugin="MujocoTactileSensorPlugin"/>
+  </extension>
+
+  <sensor>
+    <plugin name="left_tactile_sensor" plugin="MujocoTactileSensorPlugin" objtype="site" objname="left_tactile_sensor">
+      <config key="sensor_nums" value="5 8"/>
+      <config key="sensor_interval" value="0.004"/>
+      <config key="surface_radius" value="0.0"/>
+      <config key="is_hex_grid" value="false"/>
+    </plugin>
+
+    <plugin name="right_tactile_sensor" plugin="MujocoTactileSensorPlugin" objtype="site" objname="right_tactile_sensor">
+      <config key="sensor_nums" value="5 8"/>
+      <config key="sensor_interval" value="0.004"/>
+      <config key="surface_radius" value="0.0"/>
+      <config key="is_hex_grid" value="false"/>
+    </plugin>
+  </sensor>
+</mujoco>

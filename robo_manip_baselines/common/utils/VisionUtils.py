@@ -52,7 +52,7 @@ def convert_depth_image_to_color_image(image):
     return cv2.merge((image_copied,) * 3)
 
 
-def convert_depth_image_to_point_cloud(
+def convert_depth_image_to_pointcloud(
     depth_image, fovy, rgb_image=None, near_clip=0.0, far_clip=np.inf
 ):
     """Convert depth image (float type) to point cloud (array of 3D point)."""

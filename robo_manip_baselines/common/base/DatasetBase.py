@@ -71,34 +71,39 @@ class DatasetBase(torch.utils.data.Dataset):
 
     def pre_convert_data(self, state, action, images):
         """Pre-convert data. Arguments must be numpy arrays (not torch tensors)."""
-        state = normalize_data(state, self.model_meta_info["state"])
-        action = normalize_data(action, self.model_meta_info["action"])
-        images = np.moveaxis(images, -1, -3)
+        if state is not None:
+            state = normalize_data(state, self.model_meta_info["state"])
+        if action is not None:
+            action = normalize_data(action, self.model_meta_info["action"])
+        if images is not None:
+            images = np.moveaxis(images, -1, -3)
 
         return state, action, images
 
     def augment_data(self, state, action, images):
         """Augment data. Arguments must be torch tensors (not numpy arrays)."""
-        # Augment state and action
-        if self.model_meta_info["state"]["aug_std"] > 0.0:
-            state += self.model_meta_info["state"]["aug_std"] * torch.randn_like(state)
-        if self.model_meta_info["action"]["aug_std"] > 0.0:
-            action += self.model_meta_info["action"]["aug_std"] * torch.randn_like(
-                action
-            )
-
-        # Augment images
-        if images.ndim < 3:
-            raise ValueError(
-                f"[{self.__class__.__name__}] Input must have at least 3 dimensions (C, H, W)"
-            )
-        elif images.ndim == 3:
-            images = self.image_transforms(images)
-        else:
-            original_shape = images.shape
-            new_shape = (-1, *original_shape[-3:])
-            images = torch.stack(
-                [self.image_transforms(image) for image in images.view(new_shape)]
-            ).view(original_shape)
+        if state is not None:
+            if self.model_meta_info["state"]["aug_std"] > 0.0:
+                state += self.model_meta_info["state"]["aug_std"] * torch.randn_like(
+                    state
+                )
+        if action is not None:
+            if self.model_meta_info["action"]["aug_std"] > 0.0:
+                action += self.model_meta_info["action"]["aug_std"] * torch.randn_like(
+                    action
+                )
+        if images is not None:
+            if images.ndim < 3:
+                raise ValueError(
+                    f"[{self.__class__.__name__}] Input must have at least 3 dimensions (C, H, W)"
+                )
+            elif images.ndim == 3:
+                images = self.image_transforms(images)
+            else:
+                original_shape = images.shape
+                new_shape = (-1, *original_shape[-3:])
+                images = torch.stack(
+                    [self.image_transforms(image) for image in images.view(new_shape)]
+                ).view(original_shape)
 
         return state, action, images

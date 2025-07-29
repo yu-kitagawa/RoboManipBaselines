@@ -40,8 +40,8 @@ class DummyRealEnv(RealEnvBase):
         return self.cameras.keys()
 
     @property
-    def tactile_names(self):
-        return self.tactiles.keys()
+    def rgb_tactile_names(self):
+        return self.rgb_tactiles.keys()
 
 
 class TestRealEnvBaseGetInfo(unittest.TestCase):
@@ -65,14 +65,14 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
             self.assertEqual(len(depth_image.shape), 2)
 
     def assert_tactile_images_valid(self, dummy_real_env, info):
-        for tactile_name in dummy_real_env.tactile_names:
-            rgb_image = info["rgb_images"][tactile_name]
+        for rgb_tactile_name in dummy_real_env.rgb_tactile_names:
+            rgb_image = info["rgb_images"][rgb_tactile_name]
             self.assertIsInstance(rgb_image, np.ndarray)
             self.assertEqual(rgb_image.dtype, np.uint8)
             self.assertEqual(len(rgb_image.shape), 3)
             self.assertEqual(rgb_image.shape[-1], 3)
 
-            depth_image = info["depth_images"][tactile_name]
+            depth_image = info["depth_images"][rgb_tactile_name]
             self.assertIsNone(depth_image)
 
     def show_image_loop(self, dummy_real_env):
@@ -82,7 +82,7 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
                 # get rgb image
                 info = dummy_real_env._get_info()
                 for camera_name in (
-                    dummy_real_env.camera_names | dummy_real_env.tactile_names
+                    dummy_real_env.camera_names | dummy_real_env.rgb_tactile_names
                 ):
                     rgb_image = info["rgb_images"][camera_name]
                     rgb_image = cv2.resize(rgb_image, (SHOW_WIDTH, SHOW_HEIGHT))

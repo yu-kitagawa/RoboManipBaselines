@@ -6,6 +6,15 @@ See [here](../../../doc/install.md#MT-ACT) for installation.
 ## Dataset preparation
 Collect demonstration data by [teleoperation](../../teleop).
 
+## Data preprocessing
+Specify the task description (language instruction) and store it in the dataset:
+```console
+# Go to the top directory of this repository
+$ cd robo_manip_baselines
+$ python ./misc/RefineRmbData.py ./dataset/<dataset_name> --task_desc <task_desc>
+```
+An example of `<task_desc>` is "Pass the cable between the two pins."
+
 ## Model training
 Train a model:
 ```console

@@ -52,7 +52,6 @@ class MujocoUR5eInsertEnv(MujocoUR5eEnvBase):
         xy_thre = 0.012  # [m]
         z_thre = hole_pos[2] + 0.05  # [m]
         tilt_thre = 10  # [deg]
-        print(np.dot(peg_z_axis, world_z_axis), np.cos(np.deg2rad(tilt_thre)))
         if (
             (np.max(np.abs(peg_pos[:2] - hole_pos[:2])) < xy_thre)
             and (peg_pos[2] < z_thre)

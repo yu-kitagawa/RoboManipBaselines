@@ -208,6 +208,11 @@ class DataKey:
         return camera_name.lower() + "_depth_image"
 
     @classmethod
+    def get_pointcloud_key(cls, camera_name):
+        """Get the pointcloud key from the camera name."""
+        return camera_name.lower() + "_pointcloud"
+
+    @classmethod
     def get_camera_name(cls, key):
         if cls.is_rgb_image_key(key):
             return key[: -len("_rgb_image")]
@@ -225,6 +230,11 @@ class DataKey:
     def is_depth_image_key(cls, key):
         """Check if the key is for depth image."""
         return key.endswith("_depth_image")
+
+    @classmethod
+    def is_pointcloud_key(cls, key):
+        """Check if the key is for depth image."""
+        return key.endswith("_pointcloud")
 
     @classmethod
     def get_plot_scale(cls, key, env):

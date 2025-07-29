@@ -5,6 +5,9 @@
   <!-- <option timestep="0.002" solver="PGS" iterations="50" integrator="RK4"/> -->
   <size memory="1G"/>
 
+  <!-- To enable the tactile sensor, comment in the following line. -->
+  <!-- <include file="../../robots/ur5e/ur5e_tactile_sensor_config.xml"/> -->
+
   <include file="../../robots/ur5e/ur5e_integrated_shared_config.xml"/>
   <include file="../../robots/ur5e/ur5e_integrated_specific_config.xml"/>
 

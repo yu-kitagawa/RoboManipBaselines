@@ -34,9 +34,9 @@ If you want to collect data only in a simulation environment with limited world 
 $ python ./bin/Teleop.py MujocoUR5eCable --world_idx_list 0 5
 ```
 
-To add a 3D plot of the point cloud, add the following option:
+To plot the point cloud, add the following option:
 ```console
-$ python ./bin/Teleop.py MujocoUR5eCable --enable_3d_plot
+$ python ./bin/Teleop.py MujocoUR5eCable --plot_pointcloud
 ```
 
 > [!NOTE]

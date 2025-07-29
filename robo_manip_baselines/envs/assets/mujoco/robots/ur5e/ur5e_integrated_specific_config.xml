@@ -1,4 +1,4 @@
-<mujoco model="ur5e_integrated_config">
+<mujoco model="ur5e_integrated_specific_config">
   <compiler angle="radian" meshdir="../../assets/meshes" autolimits="true"/>
 
   <actuator>

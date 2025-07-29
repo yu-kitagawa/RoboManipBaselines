@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import glob
 import os
 import sys
 import time
@@ -18,7 +17,8 @@ from robo_manip_baselines.common import (
     PhaseBase,
     PhaseManager,
     convert_depth_image_to_color_image,
-    convert_depth_image_to_point_cloud,
+    convert_depth_image_to_pointcloud,
+    find_rmb_files,
     remove_suffix,
     set_random_seed,
 )
@@ -95,6 +95,7 @@ class TeleopPhase(PhaseBase):
             print(
                 f"[{self.op.__class__.__name__}] Finish teleoperation. duration: {self.get_elapsed_duration():.1f} [s]"
             )
+            self.op.episode_duration = self.get_elapsed_duration()
             return True
         else:
             return False
@@ -117,6 +118,10 @@ class EndTeleopPhase(PhaseBase):
         if ((not self.op.args.save_success_only) or (self.op.reward >= 1.0)) and (
             self.op.key == ord("s")
         ):
+            self.op.result["success"].append(bool(self.op.reward >= 1.0))
+            self.op.result["reward"].append(float(self.op.reward))
+            self.op.result["duration"].append(self.op.episode_duration)
+
             self.op.save_data()
             self.op.reset_flag = True
         elif self.op.key == ord("f"):
@@ -144,9 +149,13 @@ class ReplayPhase(PhaseBase):
         self.op.teleop_time_idx += 1
 
     def check_transition(self):
-        return self.op.teleop_time_idx == len(
+        if self.op.teleop_time_idx == len(
             self.op.replay_data_manager.get_data_seq(DataKey.TIME)
-        )
+        ):
+            self.op.episode_duration = self.get_elapsed_duration()
+            return True
+        else:
+            return False
 
 
 class EndReplayPhase(PhaseBase):
@@ -160,6 +169,10 @@ class EndReplayPhase(PhaseBase):
 
     def post_update(self):
         if self.op.auto_mode or (self.op.key == ord("n")):
+            self.op.result["success"].append(bool(self.op.reward >= 1.0))
+            self.op.result["reward"].append(float(self.op.reward))
+            self.op.result["duration"].append(self.op.episode_duration)
+
             if self.op.args.save_replay:
                 self.op.save_data()
             self.op.replay_file_idx += 1
@@ -167,8 +180,6 @@ class EndReplayPhase(PhaseBase):
                 self.op.quit_flag = True
             else:
                 self.op.reset_flag = True
-
-        return False
 
 
 class TeleopBase(ABC):
@@ -195,6 +206,7 @@ class TeleopBase(ABC):
         )
         self.data_manager.setup_camera_info()
         self.datetime_now = datetime.datetime.now()
+        self.result = {key: [] for key in ("success", "reward", "duration")}
 
         if self.args.replay_log is not None:
             # Setup data manager for replay
@@ -202,55 +214,44 @@ class TeleopBase(ABC):
             self.replay_data_manager.setup_camera_info()
 
             # Set log files for replay
-            if self.args.replay_log.rstrip("/").endswith((".rmb", ".hdf5")):
-                self.replay_filenames = [self.args.replay_log]
-            elif os.path.isdir(self.args.replay_log):
-                self.replay_filenames = sorted(
-                    [
-                        f
-                        for f in glob.glob(
-                            f"{self.args.replay_log}/**/*.*", recursive=True
-                        )
-                        if f.endswith(".rmb")
-                        or (f.endswith(".hdf5") and not f.endswith(".rmb.hdf5"))
-                    ]
-                )
-            else:
-                raise ValueError(
-                    f"[{self.__class__.__name__}] Invalid path for replaying log: {self.args.replay_log}"
-                )
+            self.replay_filenames = find_rmb_files(self.args.replay_log)
+            self.replay_filenames *= self.args.replay_repeat_count
             self.replay_file_idx = 0
 
         # Setup phase manager
-        if self.args.replay_log is None:
-            operation_phases = [
-                StandbyTeleopPhase(self),
-                TeleopPhase(self),
-                EndTeleopPhase(self),
-            ]
-            if self.args.sync_before_record:
-                operation_phases.insert(1, SyncPhase(self))
-        else:
-            operation_phases = [ReplayPhase(self), EndReplayPhase(self)]
-        phase_order = [
-            InitialTeleopPhase(self),
-            *self.get_pre_motion_phases(),
-            *operation_phases,
-        ]
-        self.phase_manager = PhaseManager(phase_order)
+        self.setup_phase_manager()
 
-        # Setup 3D plot
-        if self.args.enable_3d_plot:
+        # Setup plot
+        if self.args.plot_pointcloud:
             plt.rcParams["keymap.quit"] = ["q", "escape"]
-            self.fig, self.ax = plt.subplots(
+            fig, self.ax_3d = plt.subplots(
                 len(self.env.unwrapped.camera_names),
                 1,
                 subplot_kw=dict(projection="3d"),
+                constrained_layout=True,
             )
-            self.fig.tight_layout()
-            self.point_cloud_scatter_list = [None] * len(
-                self.env.unwrapped.camera_names
-            )
+            fig.tight_layout()
+            self.pointcloud_scatter_list = [None] * len(self.env.unwrapped.camera_names)
+
+        if self.args.plot_tactile:
+            if "Mujoco" not in self.env.unwrapped.__class__.__name__:
+                raise RuntimeError(
+                    f"[{self.__class__.__name__}] The '--plot_tactile' option is only valid in the MuJoCo environment. "
+                    f"env: {self.env.unwrapped.__class__.__name__}"
+                )
+
+            if len(self.env.unwrapped.intensity_tactile_names) > 0:
+                plt.rcParams["keymap.quit"] = ["q", "escape"]
+                fig, self.ax_tactile = plt.subplots(
+                    len(self.env.unwrapped.intensity_tactile_names),
+                    1,
+                    constrained_layout=True,
+                )
+            else:
+                raise RuntimeError(
+                    f"[{self.__class__.__name__}] The '--plot_tactile' option was specified "
+                    "but no tactile sensor with intensity output was found."
+                )
 
         # Setup input device
         if self.args.input_device_config is None:
@@ -290,6 +291,13 @@ class TeleopBase(ABC):
         )
 
         parser.add_argument(
+            "--result_filename",
+            type=str,
+            default=None,
+            help="File path (*.yaml) to save rollout results (default: do not save)",
+        )
+
+        parser.add_argument(
             "--input_device",
             type=str,
             default="spacemouse",
@@ -307,7 +315,12 @@ class TeleopBase(ABC):
         )
 
         parser.add_argument(
-            "--enable_3d_plot", action="store_true", help="whether to enable 3d plot"
+            "--plot_pointcloud", action="store_true", help="whether to plot point cloud"
+        )
+        parser.add_argument(
+            "--plot_tactile",
+            action="store_true",
+            help="whether to plot tactile sensor measurements",
         )
 
         parser.add_argument(
@@ -331,6 +344,12 @@ class TeleopBase(ABC):
             help="log file path when replaying log motion",
         )
         parser.add_argument(
+            "--replay_repeat_count",
+            type=int,
+            default=1,
+            help="number of times to repeat replay per file",
+        )
+        parser.add_argument(
             "--auto_replay",
             action="store_true",
             help="whether replay proceeds automatically",
@@ -350,6 +369,8 @@ class TeleopBase(ABC):
 
         parser.add_argument("--seed", type=int, default=-1, help="random seed")
 
+        self.set_additional_args(parser)
+
         if argv is None:
             argv = sys.argv
         self.args = parser.parse_args(argv[1:])
@@ -362,10 +383,52 @@ class TeleopBase(ABC):
         if self.args.seed < 0:
             self.args.seed = int(time.time()) % (2**32)
 
+    def set_additional_args(self, parser):
+        pass
+
     def setup_env(self):
         raise NotImplementedError(
             f"[{self.__class__.__name__}] This method should be defined in the Operation class and inherited from it."
         )
+
+    def setup_phase_manager(self):
+        if self.args.replay_log is None:
+            operation_phases = [
+                StandbyTeleopPhase(self),
+                TeleopPhase(self),
+                EndTeleopPhase(self),
+            ]
+            if self.args.sync_before_record:
+                operation_phases.insert(1, SyncPhase(self))
+        else:
+            operation_phases = [ReplayPhase(self), EndReplayPhase(self)]
+        phase_order = [
+            InitialTeleopPhase(self),
+            *self.get_pre_motion_phases(),
+            *operation_phases,
+        ]
+        self.phase_manager = PhaseManager(phase_order)
+
+        def get_text_func(phase):
+            text = remove_suffix(phase.name, "Phase")
+            if self.reward >= 1.0:
+                text += " (success)"
+            return text
+
+        def get_color_func(phase):
+            if phase.name in ("InitialTeleopPhase", "StandbyTeleopPhase"):
+                return np.array([200, 200, 255])
+            elif phase.name in ("SyncPhase"):
+                return np.array([255, 255, 200])
+            elif phase.name in ("TeleopPhase", "ReplayPhase"):
+                return np.array([255, 200, 200])
+            elif phase.name in ("EndTeleopPhase", "EndReplayPhase"):
+                return np.array([200, 200, 200])
+            else:
+                return np.array([200, 255, 200])
+
+        self.phase_manager.get_text_func = get_text_func
+        self.phase_manager.get_color_func = get_color_func
 
     def get_pre_motion_phases(self):
         return []
@@ -399,8 +462,11 @@ class TeleopBase(ABC):
 
             self.draw_image()
 
-            if self.args.enable_3d_plot:
-                self.draw_point_cloud()
+            if self.args.plot_pointcloud:
+                self.draw_pointcloud()
+
+            if self.args.plot_tactile:
+                self.draw_tactile()
 
             self.phase_manager.post_update()
 
@@ -420,6 +486,13 @@ class TeleopBase(ABC):
 
             if (not self.auto_mode) and (iteration_duration < self.env.unwrapped.dt):
                 time.sleep(self.env.unwrapped.dt - iteration_duration)
+
+        if self.args.result_filename is not None:
+            print(
+                f"[{self.__class__.__name__}] Save the teleoperation results: {self.args.result_filename}"
+            )
+            with open(self.args.result_filename, "w") as result_file:
+                yaml.dump(self.result, result_file)
 
         self.print_statistics()
 
@@ -520,38 +593,29 @@ class TeleopBase(ABC):
                 DataKey.get_depth_image_key(camera_name),
                 self.info["depth_images"][camera_name],
             )
-        for tactile_name in self.env.unwrapped.tactile_names:
+        for rgb_tactile_name in self.env.unwrapped.rgb_tactile_names:
             self.data_manager.append_single_data(
-                DataKey.get_rgb_image_key(tactile_name),
-                self.info["rgb_images"][tactile_name],
+                DataKey.get_rgb_image_key(rgb_tactile_name),
+                self.info["rgb_images"][rgb_tactile_name],
             )
 
+        # Add tactile
+        if "intensity_tactile" in self.info:
+            for intensity_tactile_name in self.info["intensity_tactile"]:
+                self.data_manager.append_single_data(
+                    intensity_tactile_name,
+                    self.info["intensity_tactile"][intensity_tactile_name].copy(),
+                )
+
     def draw_image(self):
-        def get_text_func(phase):
-            text = remove_suffix(phase.name, "Phase")
-            if self.reward >= 1.0:
-                text += " (success)"
-            return text
-
-        def get_color_func(phase):
-            if phase.name in ("InitialTeleopPhase", "StandbyTeleopPhase"):
-                return np.array([200, 200, 255])
-            elif phase.name in ("SyncPhase"):
-                return np.array([255, 255, 200])
-            elif phase.name in ("TeleopPhase", "ReplayPhase"):
-                return np.array([255, 200, 200])
-            elif phase.name in ("EndTeleopPhase", "EndReplayPhase"):
-                return np.array([200, 200, 200])
-            else:
-                return np.array([200, 255, 200])
-
         phase_image = self.phase_manager.get_phase_image(
-            get_text_func=get_text_func, get_color_func=get_color_func
+            get_text_func=self.phase_manager.get_text_func,
+            get_color_func=self.phase_manager.get_color_func,
         )
         rgb_images = []
         depth_images = []
         for camera_name in (
-            self.env.unwrapped.camera_names + self.env.unwrapped.tactile_names
+            self.env.unwrapped.camera_names + self.env.unwrapped.rgb_tactile_names
         ):
             rgb_image = self.info["rgb_images"][camera_name]
             image_ratio = rgb_image.shape[1] / rgb_image.shape[0]
@@ -561,7 +625,7 @@ class TeleopBase(ABC):
                 int(resized_image_width / image_ratio),
             )
             rgb_images.append(cv2.resize(rgb_image, resized_image_size))
-            if camera_name in self.env.unwrapped.tactile_names:
+            if camera_name in self.env.unwrapped.rgb_tactile_names:
                 depth_images.append(
                     np.full(resized_image_size[::-1] + (3,), 255, dtype=np.uint8)
                 )
@@ -582,26 +646,28 @@ class TeleopBase(ABC):
         )
         cv2.imshow("image", cv2.cvtColor(window_image, cv2.COLOR_RGB2BGR))
 
-    def draw_point_cloud(self):
+    def draw_pointcloud(self):
         far_clip_list = (3.0, 3.0, 0.8)  # [m]
-        for camera_idx, camera_name in enumerate(self.env.unwrapped.camera_names):
-            point_cloud_skip = 10
+        for camera_idx, (camera_name, ax) in enumerate(
+            zip(self.env.unwrapped.camera_names, self.ax_3d)
+        ):
+            pointcloud_skip = 10
             small_depth_image = self.info["depth_images"][camera_name][
-                ::point_cloud_skip, ::point_cloud_skip
+                ::pointcloud_skip, ::pointcloud_skip
             ]
             small_rgb_image = self.info["rgb_images"][camera_name][
-                ::point_cloud_skip, ::point_cloud_skip
+                ::pointcloud_skip, ::pointcloud_skip
             ]
             fovy = self.data_manager.get_meta_data(
                 DataKey.get_depth_image_key(camera_name) + "_fovy"
             )
-            xyz_array, rgb_array = convert_depth_image_to_point_cloud(
+            xyz_array, rgb_array = convert_depth_image_to_pointcloud(
                 small_depth_image,
                 fovy=fovy,
                 rgb_image=small_rgb_image,
                 far_clip=far_clip_list[camera_idx],
             )
-            if self.point_cloud_scatter_list[camera_idx] is None:
+            if self.pointcloud_scatter_list[camera_idx] is None:
 
                 def get_min_max(v_min, v_max):
                     return (
@@ -609,23 +675,33 @@ class TeleopBase(ABC):
                         0.25 * v_min + 0.75 * v_max,
                     )
 
-                self.ax[camera_idx].view_init(elev=-90, azim=-90)
-                self.ax[camera_idx].set_xlim(
-                    *get_min_max(xyz_array[:, 0].min(), xyz_array[:, 0].max())
-                )
-                self.ax[camera_idx].set_ylim(
-                    *get_min_max(xyz_array[:, 1].min(), xyz_array[:, 1].max())
-                )
-                self.ax[camera_idx].set_zlim(
-                    *get_min_max(xyz_array[:, 2].min(), xyz_array[:, 2].max())
-                )
+                ax.view_init(elev=-90, azim=-90)
+                ax.set_xlim(*get_min_max(xyz_array[:, 0].min(), xyz_array[:, 0].max()))
+                ax.set_ylim(*get_min_max(xyz_array[:, 1].min(), xyz_array[:, 1].max()))
+                ax.set_zlim(*get_min_max(xyz_array[:, 2].min(), xyz_array[:, 2].max()))
             else:
-                self.point_cloud_scatter_list[camera_idx].remove()
-            self.ax[camera_idx].axis("off")
-            self.ax[camera_idx].set_box_aspect(np.ptp(xyz_array, axis=0))
-            self.point_cloud_scatter_list[camera_idx] = self.ax[camera_idx].scatter(
+                self.pointcloud_scatter_list[camera_idx].remove()
+            ax.axis("off")
+            ax.set_box_aspect(np.ptp(xyz_array, axis=0))
+            self.pointcloud_scatter_list[camera_idx] = ax.scatter(
                 xyz_array[:, 0], xyz_array[:, 1], xyz_array[:, 2], c=rgb_array
             )
+        plt.draw()
+        plt.pause(0.001)
+
+    def draw_tactile(self, vmin=-50.0, vmax=50.0):
+        for tactile_name, ax in zip(self.info["intensity_tactile"], self.ax_tactile):
+            tactile_data = self.info["intensity_tactile"][tactile_name]
+            ax.clear()
+            ax.axis("off")
+            ax.imshow(
+                np.clip(tactile_data, vmin, vmax),
+                cmap="coolwarm",
+                interpolation="none",
+                vmin=vmin,
+                vmax=vmax,
+            )
+            ax.set_title(tactile_name)
         plt.draw()
         plt.pause(0.001)
 

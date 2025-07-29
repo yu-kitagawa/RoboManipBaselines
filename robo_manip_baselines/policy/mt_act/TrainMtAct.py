@@ -1,4 +1,3 @@
-import glob
 import os
 import sys
 
@@ -50,14 +49,8 @@ class TrainMtAct(TrainBase):
         self.model_meta_info["data"]["chunk_size"] = self.args.chunk_size
 
         # Set list of all task descriptions
-        all_filenames = [
-            f
-            for f in glob.glob(f"{self.args.dataset_dir}/**/*.*", recursive=True)
-            if f.endswith(".rmb")
-            or (f.endswith(".hdf5") and not f.endswith(".rmb.hdf5"))
-        ]
         self.task_desc_list = set()
-        for filename in all_filenames:
+        for filename in self.all_filenames:
             with RmbData(filename) as rmb_data:
                 self.task_desc_list.add(rmb_data.attrs["task_desc"])
         self.task_desc_list = tuple(sorted(self.task_desc_list))
