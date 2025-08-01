@@ -43,18 +43,37 @@ class MujocoUR5eToolboxEnv(MujocoUR5eEnvBase):
             ]
         )  # [m]
 
+        self.target_task = None  # One of [None, "pick", "pick_and_place"]
+
     def _get_reward(self):
         toolbox_pos = self.data.body("toolbox").xpos.copy()
         mat_pos = self.data.body("mat").xpos.copy()
 
-        xy_thre = 0.03  # [m]
-        z_thre = mat_pos[2] + 0.005  # [m]
-        if (np.max(np.abs(toolbox_pos[:2] - mat_pos[:2])) < xy_thre) and (
-            toolbox_pos[2] < z_thre
-        ):
-            return 1.0
+        pick_z_thre = mat_pos[2] + 0.01  # [m]
+        if toolbox_pos[2] > pick_z_thre:
+            pick_success = True
         else:
-            return 0.0
+            pick_success = False
+
+        pap_xy_thre = 0.03  # [m]
+        pap_z_thre = mat_pos[2] + 0.005  # [m]
+        if (np.max(np.abs(toolbox_pos[:2] - mat_pos[:2])) < pap_xy_thre) and (
+            toolbox_pos[2] < pap_z_thre
+        ):
+            pap_success = True
+        else:
+            pap_success = False
+
+        if self.target_task is None:
+            return 1.0 if pick_success or pap_success else 0.0
+        elif self.target_task == "pick":
+            return 1.0 if pick_success else 0.0
+        elif self.target_task == "pick_and_place":
+            return 1.0 if pap_success else 0.0
+        else:
+            raise ValueError(
+                f"[{self.__class__.__name__}] Invalid target task: {self.target_task}"
+            )
 
     def modify_world(self, world_idx=None, cumulative_idx=None):
         if world_idx is None:
