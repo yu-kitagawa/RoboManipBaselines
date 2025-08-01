@@ -196,6 +196,8 @@ class TeleopBase(ABC):
         self.setup_env()
         self.demo_name = self.args.demo_name or remove_suffix(self.env.spec.name, "Env")
         self.env.reset(seed=self.args.seed)
+        if self.args.target_task is not None:
+            self.env.unwrapped.target_task = self.args.target_task
 
         # Setup motion manager
         self.motion_manager = self.MotionManagerClass(self.env)
@@ -274,7 +276,10 @@ class TeleopBase(ABC):
             "--demo_name", type=str, default="", help="demonstration name"
         )
         parser.add_argument(
-            "--task_desc", type=str, default="", help="task_description"
+            "--target_task", type=str, default=None, help="target task name"
+        )
+        parser.add_argument(
+            "--task_desc", type=str, default="", help="task description"
         )
 
         parser.add_argument(
