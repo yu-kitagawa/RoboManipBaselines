@@ -7,7 +7,7 @@ import sys
 import yaml
 
 
-class TrainMain:
+class TeleopMain:
     operation_parent_module_str = "robo_manip_baselines.envs.operation"
 
     def __init__(self):
@@ -86,5 +86,5 @@ class TrainMain:
 
 
 if __name__ == "__main__":
-    main = TrainMain()
+    main = TeleopMain()
     main.run()
