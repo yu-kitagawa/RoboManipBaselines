@@ -29,7 +29,7 @@ $ python ./CompareRmbData.py <rmb_file1> <rmb_file2>
 Update the task description attribute in RMB format files. It accepts a path to a file or directory and automatically searches for relevant files. If the task description attribute exists and `--overwrite` is not specified, the value is not changed.
 
 ```console
-$ python ./RefineRmbData.py <path_to_data> --task_desc "<new_description>" [--overwrite]
+$ python ./RefineRmbData.py <rmb_file> --task_desc "<new_description>" [--overwrite]
 ```
 
 ## Visualization utilities
