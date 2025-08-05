@@ -581,9 +581,18 @@ class TeleopBase(ABC):
         for key in (
             DataKey.MEASURED_JOINT_POS_REL,
             DataKey.COMMAND_JOINT_POS_REL,
+            DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
             DataKey.MEASURED_EEF_POSE_REL,
             DataKey.COMMAND_EEF_POSE_REL,
         ):
+            abs_key = DataKey.get_abs_key(key)
+            if abs_key not in (
+                *self.env.unwrapped.measured_keys_to_save,
+                *self.env.unwrapped.command_keys_to_save,
+            ):
+                continue
+
             self.data_manager.append_single_data(
                 key, self.data_manager.calc_rel_data(key)
             )

@@ -32,6 +32,8 @@ class ArmManager(BodyManagerBase):
         # DataKey.COMMAND_JOINT_TORQUE,
         DataKey.MEASURED_GRIPPER_JOINT_POS,
         DataKey.COMMAND_GRIPPER_JOINT_POS,
+        DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+        DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
         DataKey.MEASURED_EEF_POSE,
         DataKey.COMMAND_EEF_POSE,
         DataKey.MEASURED_EEF_POSE_REL,
@@ -102,6 +104,11 @@ class ArmManager(BodyManagerBase):
                 self.body_config.gripper_joint_idxes_in_gripper_joint_pos
             ]
             self.set_command_gripper_joint_pos(gripper_joint_pos)
+        elif key == DataKey.COMMAND_GRIPPER_JOINT_POS_REL:
+            gripper_joint_pos_rel = command[
+                self.body_config.gripper_joint_idxes_in_gripper_joint_pos
+            ]
+            self.set_command_gripper_joint_pos_rel(gripper_joint_pos_rel, is_skip)
         elif key == DataKey.COMMAND_EEF_POSE:
             if isinstance(command, pin.SE3):
                 eef_pose = command
@@ -144,6 +151,12 @@ class ArmManager(BodyManagerBase):
             self.env.action_space.low[self.body_config.gripper_joint_idxes_for_limit],
             self.env.action_space.high[self.body_config.gripper_joint_idxes_for_limit],
         )
+
+    def set_command_gripper_joint_pos_rel(self, gripper_joint_pos_rel, is_skip=False):
+        gripper_joint_pos = self.gripper_joint_pos.copy()
+        if not is_skip:
+            gripper_joint_pos += gripper_joint_pos_rel
+        self.set_command_gripper_joint_pos(gripper_joint_pos)
 
     def set_command_eef_pose(self, eef_pose):
         if isinstance(eef_pose, pin.SE3):
