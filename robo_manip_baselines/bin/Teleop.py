@@ -7,71 +7,84 @@ import sys
 import yaml
 
 
-def main():
-    env_utils_spec = importlib.util.spec_from_file_location(
-        "EnvUtils",
-        os.path.join(os.path.dirname(__file__), "..", "common/utils/EnvUtils.py"),
-    )
-    env_utils_module = importlib.util.module_from_spec(env_utils_spec)
-    env_utils_spec.loader.exec_module(env_utils_module)
+class TrainMain:
+    operation_parent_module_str = "robo_manip_baselines.envs.operation"
 
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description="This is a meta argument parser for the teleop switching between different environments. The actual arguments are handled by another internal argument parser.",
-        add_help=False,
-    )
-    parser.add_argument(
-        "env",
-        type=str,
-        help="environment",
-        nargs="?",
-        default=None,
-        choices=env_utils_module.get_env_names(),
-    )
-    parser.add_argument("--config", type=str, help="configuration file")
-    parser.add_argument(
-        "-h", "--help", action="store_true", help="Show this help message and continue"
-    )
+    def __init__(self):
+        self.setup_args()
 
-    args, remaining_argv = parser.parse_known_args()
-    sys.argv = [sys.argv[0]] + remaining_argv
-    if args.env is None:
-        parser.print_help()
-        return
-    elif args.help:
-        parser.print_help()
-        print("\n================================\n")
-        sys.argv += ["--help"]
-
-    if "Isaac" in args.env:
-        from isaacgym import (
-            gymapi,  # noqa: F401
-            gymtorch,  # noqa: F401
-            gymutil,  # noqa: F401
+    def setup_args(self):
+        env_utils_spec = importlib.util.spec_from_file_location(
+            "EnvUtils",
+            os.path.join(os.path.dirname(__file__), "..", "common/utils/EnvUtils.py"),
         )
-    if args.env.endswith("Vec"):
-        from robo_manip_baselines.teleop import TeleopBaseVec as TeleopBase
-    else:
-        from robo_manip_baselines.teleop import TeleopBase
+        env_utils_module = importlib.util.module_from_spec(env_utils_spec)
+        env_utils_spec.loader.exec_module(env_utils_module)
 
-    operation_module = importlib.import_module(
-        f"robo_manip_baselines.envs.operation.Operation{args.env}"
-    )
-    OperationEnvClass = getattr(operation_module, f"Operation{args.env}")
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            description="This is a meta argument parser for the teleop switching between different environments. The actual arguments are handled by another internal argument parser.",
+            add_help=False,
+        )
+        parser.add_argument(
+            "env",
+            type=str,
+            help="environment",
+            nargs="?",
+            default=None,
+            choices=env_utils_module.get_env_names(
+                operation_parent_module_str=self.operation_parent_module_str
+            ),
+        )
+        parser.add_argument("--config", type=str, help="configuration file")
+        parser.add_argument(
+            "-h",
+            "--help",
+            action="store_true",
+            help="Show this help message and continue",
+        )
 
-    # The order of parent classes must not be changed in order to maintain the method resolution order (MRO)
-    class Teleop(OperationEnvClass, TeleopBase):
-        pass
+        self.args, remaining_argv = parser.parse_known_args()
+        sys.argv = [sys.argv[0]] + remaining_argv
+        if self.args.env is None:
+            parser.print_help()
+            sys.exit(1)
+        elif self.args.help:
+            parser.print_help()
+            print("\n================================\n")
+            sys.argv += ["--help"]
 
-    if args.config is None:
-        config = {}
-    else:
-        with open(args.config, "r") as f:
-            config = yaml.safe_load(f)
+    def run(self):
+        if "Isaac" in self.args.env:
+            from isaacgym import (
+                gymapi,  # noqa: F401
+                gymtorch,  # noqa: F401
+                gymutil,  # noqa: F401
+            )
+        if self.args.env.endswith("Vec"):
+            from robo_manip_baselines.teleop import TeleopBaseVec as TeleopBase
+        else:
+            from robo_manip_baselines.teleop import TeleopBase
 
-    teleop = Teleop(**config)
-    teleop.run()
+        operation_module = importlib.import_module(
+            f"{self.operation_parent_module_str}.Operation{self.args.env}"
+        )
+        OperationEnvClass = getattr(operation_module, f"Operation{self.args.env}")
+
+        # The order of parent classes must not be changed in order to maintain the method resolution order (MRO)
+        class Teleop(OperationEnvClass, TeleopBase):
+            pass
+
+        if self.args.config is None:
+            config = {}
+        else:
+            with open(self.args.config, "r") as f:
+                config = yaml.safe_load(f)
+
+        teleop = Teleop(**config)
+        teleop.run()
 
 
 if __name__ == "__main__":
-    main()
+    main = TrainMain()
+    main.run()
