@@ -77,8 +77,6 @@ class TeleopPhase(PhaseBase):
     def start(self):
         super().start()
 
-        self.op.init_for_relative_command()
-
         self.op.teleop_time_idx = 0
         print(
             f"[{self.op.__class__.__name__}] Press the 'n' key to finish teleoperation."
