@@ -55,7 +55,7 @@ We provide several powerful policy architectures for manipulation tasks:
 Use your own teleop interface to collect expert data.  
 See [Teleop Tools](./robo_manip_baselines/teleop) for more info.
 
-- 📂 [Multiple SpaceMouse](./doc/use_multiple_spacemouse.md): Setup multiple SpaceMouse for high-degree-of-freedom robots
+- 🎮 [Multiple SpaceMouse](./doc/use_multiple_spacemouse.md): Setup multiple SpaceMouse for high-degree-of-freedom robots
 
 ---
 
@@ -66,7 +66,7 @@ Explore diverse manipulation environments:
 - 📚 [Environment Catalog](./doc/environment_catalog.md): Overview of all task environments
 - 🔧 [Env Setup](./robo_manip_baselines/envs): Installation guides per environment
 - ✏️ [How to Add a New Environment](./doc/how_to_add_env.md): Guide for adding a custom environment
-- ✏️ [MuJoCo Tactile Sensor](./doc/mujoco_tactile_sensor.md): Guide for using tactile sensors in MuJoCo environments
+- 🔅️ [MuJoCo Tactile Sensor](./doc/mujoco_tactile_sensor.md): Guide for using tactile sensors in MuJoCo environments
 
 ---
 
