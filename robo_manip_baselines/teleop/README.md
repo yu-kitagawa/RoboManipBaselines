@@ -24,7 +24,7 @@ If you want to use [GELLO](https://wuphilipp.github.io/gello_site) as a teleoper
 $ python ./bin/Teleop.py MujocoUR5eCable --input_device gello
 ```
 
-If you want to save the data in [RmbData-SingleHDF5 (`.hdf5`) format instead of RmbData-Compact (`.rmb`)](../../doc/rmb-data-format.md):
+If you want to save the data in [RmbData-SingleHDF5 (`.hdf5`) format instead of RmbData-Compact (`.rmb`)](../../doc/rmb_data_format.md):
 ```console
 $ python ./bin/Teleop.py MujocoUR5eCable --file_format hdf5
 ```
