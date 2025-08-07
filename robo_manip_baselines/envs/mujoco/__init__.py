@@ -16,6 +16,7 @@ from .xarm7.MujocoXarm7RingEnv import MujocoXarm7RingEnv
 from .vx300s.MujocoVx300sPickEnv import MujocoVx300sPickEnv
 
 from .aloha.MujocoAlohaCableEnv import MujocoAlohaCableEnv
+from .aloha.MujocoAlohaHandoverEnv import MujocoAlohaHandoverEnv
 
 from .hsr.MujocoHsrTidyupEnv import MujocoHsrTidyupEnv
 
