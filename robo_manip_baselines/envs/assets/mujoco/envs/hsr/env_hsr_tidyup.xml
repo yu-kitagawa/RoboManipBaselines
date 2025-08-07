@@ -5,8 +5,10 @@
     <texture name="bottle" file="general/metal2.png" type="cube"/>
     <material name="bottle1" texture="bottle" rgba="0.1 0.5 0.8 1.0" specular="1.0" shininess="1.0"/>
     <material name="bottle2" texture="bottle" rgba="0.8 0.1 0.5 1.0" specular="1.0" shininess="1.0"/>
-    <texture name="container" type="cube" file="general/wood1.png"/>
-    <material name="container" texture="container" rgba="0.1 0.5 0.1 1.0" specular="0.2" shininess="0.3"/>
+    <texture name="container1" type="cube" file="general/wood1.png"/>
+    <material name="container1" texture="container1" rgba="0.1 0.5 0.1 1.0" specular="0.2" shininess="0.3"/>
+    <texture name="container2" type="cube" file="general/wood1.png"/>
+    <material name="container2" texture="container2" rgba="0.5 0.1 0.1 1.0" specular="0.2" shininess="0.3"/>
   </asset>
 
   <include file="../../robots/hsr/hsr_config.xml"/>
@@ -23,21 +25,28 @@
 
     <include file="../../robots/hsr/hsr_body.xml"/>
 
-    <body name="bottle1" pos="0.4 0.1 0.01">
-      <freejoint/>
+    <body name="bottle1" pos="0.7 0.08 0.01">
+      <freejoint name="bottle1_freejoint"/>
       <geom type="box" size="0.025 0.025 0.07" pos="0 0 0.07" material="bottle1"/>
     </body>
-    <body name="bottle2" pos="0.4 -0.1 0.01">
-      <freejoint/>
+    <body name="bottle2" pos="0.7 -0.08 0.01">
+      <freejoint name="bottle2_freejoint"/>
       <geom type="box" size="0.025 0.025 0.07" pos="0 0 0.07" material="bottle2"/>
     </body>
 
-    <body name="container" pos="0.8 0.0 0.0">
-      <geom type="box" size="0.1 0.15 0.005" pos="0.0 0.0 0.005" material="container"/>
-      <geom type="box" size="0.1 0.005 0.06" pos="0.0 0.155 0.06" material="container"/>
-      <geom type="box" size="0.1 0.005 0.06" pos="0.0 -0.155 0.06" material="container"/>
-      <geom type="box" size="0.005 0.15 0.06" pos="0.095 0.0 0.06" material="container"/>
-      <geom type="box" size="0.005 0.15 0.06" pos="-0.095 0.0 0.06" material="container"/>
+    <body name="container1" pos="1.0 0.0 0.0">
+      <geom type="box" size="0.1 0.15 0.005" pos="0.0 0.0 0.005" material="container1"/>
+      <geom type="box" size="0.1 0.005 0.06" pos="0.0 0.155 0.06" material="container1"/>
+      <geom type="box" size="0.1 0.005 0.06" pos="0.0 -0.155 0.06" material="container1"/>
+      <geom type="box" size="0.005 0.15 0.06" pos="0.095 0.0 0.06" material="container1"/>
+      <geom type="box" size="0.005 0.15 0.06" pos="-0.095 0.0 0.06" material="container1"/>
+    </body>
+    <body name="container2" pos="1.2 0.0 0.0">
+      <geom type="box" size="0.1 0.15 0.005" pos="0.0 0.0 0.005" material="container2"/>
+      <geom type="box" size="0.1 0.005 0.06" pos="0.0 0.155 0.06" material="container2"/>
+      <geom type="box" size="0.1 0.005 0.06" pos="0.0 -0.155 0.06" material="container2"/>
+      <geom type="box" size="0.005 0.15 0.06" pos="0.095 0.0 0.06" material="container2"/>
+      <geom type="box" size="0.005 0.15 0.06" pos="-0.095 0.0 0.06" material="container2"/>
     </body>
   </worldbody>
 </mujoco>
