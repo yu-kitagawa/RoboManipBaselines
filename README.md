@@ -78,7 +78,7 @@ Check out [Misc Scripts](./robo_manip_baselines/misc) for standalone tools and u
 
 ## 📊 Evaluation Results
 
-See [benchmarked performance results](./doc/evaluation_results.md) across environments and policies.
+See [benchmarked performance](./doc/evaluation_results.md) across environments and policies.
 
 ---
 
