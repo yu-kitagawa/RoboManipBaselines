@@ -64,7 +64,12 @@ class DataManager:
 
         abs_key = DataKey.get_abs_key(key)
 
-        if key in (DataKey.MEASURED_JOINT_POS_REL, DataKey.COMMAND_JOINT_POS_REL):
+        if key in (
+            DataKey.MEASURED_JOINT_POS_REL,
+            DataKey.COMMAND_JOINT_POS_REL,
+            DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
+        ):
             if len(all_data_seq[abs_key]) < 2:
                 return np.zeros_like(all_data_seq[abs_key][0])
             else:
@@ -85,6 +90,10 @@ class DataManager:
                         get_rel_pose_from_se3(prev_se3.actInv(current_se3))
                     )
                 return np.concatenate(rel_pose_list)
+        else:
+            raise ValueError(
+                f"[{self.__class__.__name__}] Unsupported key for relative data: {key}"
+            )
 
     def save_data(
         self, filename, all_data_seq=None, meta_data=None, increment_episode_idx=True
@@ -212,6 +221,8 @@ class DataManager:
                 DataKey.COMMAND_EEF_VEL,
                 DataKey.MEASURED_JOINT_POS_REL,
                 DataKey.COMMAND_JOINT_POS_REL,
+                DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+                DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
             ):
                 all_data_seq[key] = [-1.0 * data for data in all_data_seq[key]]
             elif key in (DataKey.MEASURED_EEF_POSE_REL, DataKey.COMMAND_EEF_POSE_REL):

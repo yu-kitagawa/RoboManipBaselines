@@ -35,6 +35,11 @@ class DataKey:
     # Command gripper joint position
     COMMAND_GRIPPER_JOINT_POS = "command_gripper_joint_pos"
 
+    # Measured gripper joint position relative to previous step
+    MEASURED_GRIPPER_JOINT_POS_REL = "measured_gripper_joint_pos_rel"
+    # Command gripper joint position relative to previous step
+    COMMAND_GRIPPER_JOINT_POS_REL = "command_gripper_joint_pos_rel"
+
     # Measured end-effector pose (tx, ty, tz, qw, qx, qy, qz)
     # Note: This is the end-effector pose corresponding to the measured joint position.
     MEASURED_EEF_POSE = "measured_eef_pose"
@@ -69,6 +74,7 @@ class DataKey:
         MEASURED_JOINT_VEL,
         # MEASURED_JOINT_TORQUE,
         MEASURED_GRIPPER_JOINT_POS,
+        MEASURED_GRIPPER_JOINT_POS_REL,
         MEASURED_EEF_POSE,
         MEASURED_EEF_POSE_REL,
         # MEASURED_EEF_VEL,
@@ -83,6 +89,7 @@ class DataKey:
         # COMMAND_JOINT_VEL,
         # COMMAND_JOINT_TORQUE,
         COMMAND_GRIPPER_JOINT_POS,
+        COMMAND_GRIPPER_JOINT_POS_REL,
         COMMAND_EEF_POSE,
         COMMAND_EEF_POSE_REL,
         # COMMAND_EEF_VEL,
@@ -115,6 +122,8 @@ class DataKey:
         elif key in (
             DataKey.MEASURED_GRIPPER_JOINT_POS,
             DataKey.COMMAND_GRIPPER_JOINT_POS,
+            DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
         ):
             return sum(
                 len(body_config.gripper_joint_idxes)
@@ -176,6 +185,10 @@ class DataKey:
             return DataKey.MEASURED_JOINT_POS_REL
         elif key == DataKey.COMMAND_JOINT_POS:
             return DataKey.COMMAND_JOINT_POS_REL
+        elif key == DataKey.MEASURED_GRIPPER_JOINT_POS:
+            return DataKey.MEASURED_GRIPPER_JOINT_POS_REL
+        elif key == DataKey.COMMAND_GRIPPER_JOINT_POS:
+            return DataKey.COMMAND_GRIPPER_JOINT_POS_REL
         elif key == DataKey.MEASURED_EEF_POSE:
             return DataKey.MEASURED_EEF_POSE_REL
         elif key == DataKey.COMMAND_EEF_POSE:
@@ -190,6 +203,10 @@ class DataKey:
             return DataKey.MEASURED_JOINT_POS
         elif key == DataKey.COMMAND_JOINT_POS_REL:
             return DataKey.COMMAND_JOINT_POS
+        elif key == DataKey.MEASURED_GRIPPER_JOINT_POS_REL:
+            return DataKey.MEASURED_GRIPPER_JOINT_POS
+        elif key == DataKey.COMMAND_GRIPPER_JOINT_POS_REL:
+            return DataKey.COMMAND_GRIPPER_JOINT_POS
         elif key == DataKey.MEASURED_EEF_POSE_REL:
             return DataKey.MEASURED_EEF_POSE
         elif key == DataKey.COMMAND_EEF_POSE_REL:
@@ -260,6 +277,8 @@ class DataKey:
         elif key in (
             DataKey.MEASURED_GRIPPER_JOINT_POS,
             DataKey.COMMAND_GRIPPER_JOINT_POS,
+            DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
         ):
             return np.full(cls.get_dim(key, env), 0.01)
         elif key in (DataKey.MEASURED_EEF_POSE_REL, DataKey.COMMAND_EEF_POSE_REL):

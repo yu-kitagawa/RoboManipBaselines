@@ -1,0 +1,47 @@
+<mujoco model="aloha_handover">
+  <include file="./env_aloha_common.xml"/>
+
+  <asset>
+    <texture name="obj" file="general/metal2.png" type="cube"/>
+    <material name="obj" texture="obj" rgba="0.8 0.0 0.5 1" specular="1.0" shininess="1.0"/>
+    <texture name="mat" file="general/fabric1.png" type="cube"/>
+    <material name="mat1" texture="mat" rgba="0.8 0.8 0.1 1.0" specular="0.1" shininess="0.1"/>
+    <material name="mat2" texture="mat" rgba="0.0 0.8 0.8 1.0" specular="0.1" shininess="0.1"/>
+  </asset>
+
+  <include file="../../robots/aloha/aloha_arms_config.xml"/>
+
+  <include file="../../objects/aloha/aloha_table_config.xml"/>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true" diffuse="0.3 0.3 0.3"/>
+
+    <geom name="floor" size="0 0 0.05" type="plane" material="floor" pos="0 0 -0.75"/>
+
+    <geom name="wall1" type="box" size="10 10 0.01" pos="10 0 9" zaxis="1 0 0" material="wall"/>
+    <geom name="wall2" type="box" size="10 10 0.01" pos="-10 0 9" zaxis="1 0 0" material="wall"/>
+    <geom name="wall3" type="box" size="10 10 0.01" pos="0 10 9" zaxis="0 1 0" material="wall"/>
+    <geom name="wall4" type="box" size="10 10 0.01" pos="0 -10 9" zaxis="0 1 0" material="wall"/>
+
+    <body euler="0 0 -1.5708">
+      <include file="../../robots/aloha/aloha_arms_body.xml"/>
+    </body>
+
+    <body euler="0 0 -1.5708">
+      <include file="../../objects/aloha/aloha_table_body.xml"/>
+    </body>
+
+    <body name="obj" pos="0.22 0.22 0.005">
+      <freejoint name="obj_freejoint"/>
+      <geom type="box" size="0.04 0.04 0.01" pos="0.0 0.0 0.01" material="obj"/>
+      <geom type="box" size="0.015 0.015 0.07" pos="0.0 0.0 0.08" material="obj"/>
+    </body>
+
+    <body name="mat1" pos="0.22 0.22 0.0">
+      <geom type="box" size="0.1 0.1 0.001" pos="0.0 0.0 0.001" material="mat1"/>
+    </body>
+    <body name="mat2" pos="-0.22 -0.22 0.0">
+      <geom type="box" size="0.1 0.1 0.001" pos="0.0 0.0 0.001" material="mat2"/>
+    </body>
+  </worldbody>
+</mujoco>

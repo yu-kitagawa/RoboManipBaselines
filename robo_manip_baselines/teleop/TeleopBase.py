@@ -133,6 +133,8 @@ class ReplayPhase(PhaseBase):
     def start(self):
         super().start()
 
+        self.op.init_for_relative_command()
+
         self.op.teleop_time_idx = 0
         print(f"[{self.op.__class__.__name__}] Start to replay the log motion.")
 
@@ -196,6 +198,8 @@ class TeleopBase(ABC):
         self.setup_env()
         self.demo_name = self.args.demo_name or remove_suffix(self.env.spec.name, "Env")
         self.env.reset(seed=self.args.seed)
+        if self.args.target_task is not None:
+            self.env.unwrapped.target_task = self.args.target_task
 
         # Setup motion manager
         self.motion_manager = self.MotionManagerClass(self.env)
@@ -274,7 +278,10 @@ class TeleopBase(ABC):
             "--demo_name", type=str, default="", help="demonstration name"
         )
         parser.add_argument(
-            "--task_desc", type=str, default="", help="task_description"
+            "--target_task", type=str, default=None, help="target task name"
+        )
+        parser.add_argument(
+            "--task_desc", type=str, default="", help="task description"
         )
 
         parser.add_argument(
@@ -529,17 +536,6 @@ class TeleopBase(ABC):
             )
             world_idx = self.replay_data_manager.get_meta_data("world_idx")
 
-            # Set initial joint position for relative command
-            if not set(self.args.replay_keys).isdisjoint(
-                [DataKey.COMMAND_JOINT_POS_REL, DataKey.COMMAND_EEF_POSE_REL]
-            ):
-                self.motion_manager.set_command_data(
-                    DataKey.COMMAND_JOINT_POS,
-                    self.replay_data_manager.get_single_data(
-                        DataKey.COMMAND_JOINT_POS, 0
-                    ),
-                )
-
         # Reset environment
         self.env.unwrapped.world_random_scale = self.args.world_random_scale
         self.data_manager.setup_env_world(world_idx)
@@ -550,6 +546,21 @@ class TeleopBase(ABC):
 
         # Reset phase manager
         self.phase_manager.reset()
+
+    def init_for_relative_command(self):
+        for key in [
+            DataKey.COMMAND_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_EEF_POSE_REL,
+        ]:
+            if key not in self.args.replay_keys:
+                continue
+
+            abs_key = DataKey.get_abs_key(key)
+            self.motion_manager.set_command_data(
+                abs_key,
+                self.replay_data_manager.get_single_data(abs_key, 0),
+            )
 
     def record_data(self):
         # Add time
@@ -576,9 +587,18 @@ class TeleopBase(ABC):
         for key in (
             DataKey.MEASURED_JOINT_POS_REL,
             DataKey.COMMAND_JOINT_POS_REL,
+            DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
             DataKey.MEASURED_EEF_POSE_REL,
             DataKey.COMMAND_EEF_POSE_REL,
         ):
+            abs_key = DataKey.get_abs_key(key)
+            if abs_key not in (
+                *self.env.unwrapped.measured_keys_to_save,
+                *self.env.unwrapped.command_keys_to_save,
+            ):
+                continue
+
             self.data_manager.append_single_data(
                 key, self.data_manager.calc_rel_data(key)
             )

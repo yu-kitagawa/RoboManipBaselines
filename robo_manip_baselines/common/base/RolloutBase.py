@@ -142,6 +142,8 @@ class RolloutBase(ABC):
 
         render_mode = None if self.args.no_render else "human"
         self.setup_env(render_mode=render_mode)
+        if self.args.target_task is not None:
+            self.env.unwrapped.target_task = self.args.target_task
 
         if self.args.camera_names is None:
             self.args.camera_names = self.env.unwrapped.camera_names
@@ -266,6 +268,9 @@ class RolloutBase(ABC):
             ),
         )
 
+        parser.add_argument(
+            "--target_task", type=str, default=None, help="target task name"
+        )
         if self.require_task_desc:
             parser.add_argument(
                 "--task_desc", type=str, required=True, help="task description"

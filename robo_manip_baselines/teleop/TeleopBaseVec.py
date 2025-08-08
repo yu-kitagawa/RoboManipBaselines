@@ -142,6 +142,8 @@ class TeleopBaseVec(TeleopBase):
         for key in (
             DataKey.MEASURED_JOINT_POS_REL,
             DataKey.COMMAND_JOINT_POS_REL,
+            DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+            DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
             DataKey.MEASURED_EEF_POSE_REL,
             DataKey.COMMAND_EEF_POSE_REL,
         ):

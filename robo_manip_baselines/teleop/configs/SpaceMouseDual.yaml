@@ -1,6 +1,6 @@
 0:
   device_params:
-    device: SpaceMouse Wireless
+    path: /dev/hidraw6
 1:
   device_params:
-    device: 3Dconnexion Universal Receiver
+    path: /dev/hidraw7

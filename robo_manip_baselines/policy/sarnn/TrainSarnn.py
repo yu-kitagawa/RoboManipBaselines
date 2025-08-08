@@ -100,7 +100,7 @@ class TrainSarnn(TrainBase):
                 env_name = rmb_data.attrs["env"]
 
             if env_name == "MujocoUR5eCableEnv":
-                self.args.image_crop_size_list = [300, 300]
+                self.args.image_crop_size_list = [280, 280]
             elif env_name == "MujocoUR5eRingEnv":
                 self.args.image_crop_size_list = [420, 300]
             elif env_name == "MujocoUR5eParticleEnv":

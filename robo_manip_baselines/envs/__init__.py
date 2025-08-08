@@ -67,6 +67,10 @@ register(
     id="robo_manip_baselines/MujocoAlohaCableEnv-v0",
     entry_point="robo_manip_baselines.envs.mujoco:MujocoAlohaCableEnv",
 )
+register(
+    id="robo_manip_baselines/MujocoAlohaHandoverEnv-v0",
+    entry_point="robo_manip_baselines.envs.mujoco:MujocoAlohaHandoverEnv",
+)
 
 ## HSR
 register(

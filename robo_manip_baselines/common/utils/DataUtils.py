@@ -78,6 +78,8 @@ def get_skipped_data_seq(data_seq, key, skip):
     if key in (
         DataKey.MEASURED_JOINT_POS_REL,
         DataKey.COMMAND_JOINT_POS_REL,
+        DataKey.MEASURED_GRIPPER_JOINT_POS_REL,
+        DataKey.COMMAND_GRIPPER_JOINT_POS_REL,
     ):
 
         def sum_regular(arr):
