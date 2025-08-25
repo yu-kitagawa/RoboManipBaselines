@@ -90,6 +90,7 @@ class TrainDiffusionPolicy3d(TrainBase):
         image_size = None
         min_bound = None
         max_bound = None
+        roll_pitch_yaw = None
         for filename in self.all_filenames:
             with RmbData(filename) as rmb_data:
                 num_points_new = rmb_data[pc_key].shape[1]
@@ -123,6 +124,14 @@ class TrainDiffusionPolicy3d(TrainBase):
                     raise ValueError(
                         f"[{self.__class__.__name__}] max_bound is inconsistent in dataset: {max_bound} != {max_bound_new}"
                     )
+                
+                roll_pitch_yaw_new = rmb_data.attrs[pc_key + "_roll_pitch_yaw"]
+                if roll_pitch_yaw is None:
+                    roll_pitch_yaw = roll_pitch_yaw_new
+                elif not np.allclose(roll_pitch_yaw, roll_pitch_yaw_new):
+                    raise ValueError(
+                        f"[{self.__class__.__name__}] roll_pitch_yaw is inconsistent in dataset: {roll_pitch_yaw} != {roll_pitch_yaw_new}"
+                    )
 
         self.model_meta_info["data"]["horizon"] = self.args.horizon
         self.model_meta_info["data"]["n_obs_steps"] = self.args.n_obs_steps
@@ -133,6 +142,7 @@ class TrainDiffusionPolicy3d(TrainBase):
         self.model_meta_info["data"]["image_size"] = image_size
         self.model_meta_info["data"]["min_bound"] = min_bound
         self.model_meta_info["data"]["max_bound"] = max_bound
+        self.model_meta_info["data"]["roll_pitch_yaw"] = roll_pitch_yaw
 
         self.model_meta_info["policy"]["use_ema"] = self.args.use_ema
 
@@ -266,7 +276,7 @@ class TrainDiffusionPolicy3d(TrainBase):
         )
         data_info = self.model_meta_info["data"]
         print(
-            f"  - with color: {self.args.use_pc_color}, num points: {data_info['num_points']}, image size: {data_info['image_size']}, min bound: {data_info['min_bound']}, max bound: {data_info['max_bound']}"
+            f"  - with color: {self.args.use_pc_color}, num points: {data_info['num_points']}, image size: {data_info['image_size']}, min bound: {data_info['min_bound']}, max bound: {data_info['max_bound']}, roll_pitch_yaw: {data_info['roll_pitch_yaw']}"
         )
 
     def train_loop(self):

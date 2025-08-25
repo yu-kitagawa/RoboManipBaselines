@@ -13,6 +13,7 @@ from robo_manip_baselines.common import (
 from robo_manip_baselines.common.utils.Vision3dUtils import (
     crop_pointcloud_bb,
     downsample_pointcloud_fps,
+    rotate_pointcloud,
 )
 
 
@@ -54,6 +55,13 @@ def parse_argument():
         help="max bounds of the bounding box for cropping",
     )
     parser.add_argument(
+        "--roll_pitch_yaw",
+        type=float,
+        nargs=3,
+        default=[0, 0, 0],
+        help="rotation of the bounding box for cropping",
+    )
+    parser.add_argument(
         "--num_points",
         type=int,
         default=512,
@@ -76,6 +84,7 @@ class AddPointCloudToRmbData:
         image_size,
         min_bound=None,
         max_bound=None,
+        roll_pitch_yaw=None,
         num_points=512,
         overwrite=False,
     ):
@@ -84,8 +93,22 @@ class AddPointCloudToRmbData:
         self.image_size = image_size
         self.min_bound = min_bound
         self.max_bound = max_bound
+        self.rpy = roll_pitch_yaw
         self.num_points = num_points
         self.overwrite = overwrite
+
+    def euler_to_rotation_matrix(self, rpy_deg):
+        r, p, y = np.deg2rad(rpy_deg)
+        Rx = np.array(
+            [[1, 0, 0], [0, np.cos(r), -np.sin(r)], [0, np.sin(r), np.cos(r)]]
+        )
+        Ry = np.array(
+            [[np.cos(p), 0, np.sin(p)], [0, 1, 0], [-np.sin(p), 0, np.cos(p)]]
+        )
+        Rz = np.array(
+            [[np.cos(y), -np.sin(y), 0], [np.sin(y), np.cos(y), 0], [0, 0, 1]]
+        )
+        return Rz @ Ry @ Rx
 
     def run(self):
         pc_key = DataKey.get_pointcloud_key(self.camera_name)
@@ -110,6 +133,7 @@ class AddPointCloudToRmbData:
                 rmb_data.attrs[pc_key + "_image_size"] = self.image_size
                 rmb_data.attrs[pc_key + "_min_bound"] = self.min_bound
                 rmb_data.attrs[pc_key + "_max_bound"] = self.max_bound
+                rmb_data.attrs[pc_key + "_roll_pitch_yaw"] = self.rpy
 
     def get_pointclouds(self, rmb_data):
         # Load images
@@ -135,6 +159,8 @@ class AddPointCloudToRmbData:
             )
 
             # Crop and downsample pointcloud
+            rotmat = self.euler_to_rotation_matrix(self.rpy)
+            pointcloud = rotate_pointcloud(pointcloud, rotmat)
             pointcloud = crop_pointcloud_bb(pointcloud, self.min_bound, self.max_bound)
             pointcloud = downsample_pointcloud_fps(pointcloud, self.num_points)
 
