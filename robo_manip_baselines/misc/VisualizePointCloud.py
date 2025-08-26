@@ -14,6 +14,7 @@ from robo_manip_baselines.common.utils.Vision3dUtils import (
     downsample_pointcloud_fps,
     rotate_pointcloud,
 )
+from robo_manip_baselines.common.utils.MathUtils import euler_to_rotation_matrix
 
 
 class VisualizePointCloud:
@@ -59,6 +60,7 @@ class VisualizePointCloud:
         self.downsample_enabled = False
 
         print("[Keys] <-/->: time step | Esc: exit | O: toggle downsample")
+        print("P: print min_bound max_bound rotation")
         print("E/D: min_x +/- | R/F: max_x +/-")
         print("T/G: min_y +/- | Y/H: max_y +/-")
         print("U/J: min_z +/- | I/K: max_z +/-")
@@ -119,6 +121,7 @@ class VisualizePointCloud:
         self.vis.register_key_action_callback(262, self.right_callback)
         self.vis.register_key_action_callback(263, self.left_callback)
         self.vis.register_key_action_callback(256, self.esc_callback)
+        self.vis.register_key_action_callback(ord("P"), self.print_callback)
 
         # Bound control
         self.vis.register_key_action_callback(
@@ -220,7 +223,7 @@ class VisualizePointCloud:
             return
         pointcloud = np.concatenate(result, axis=1)
 
-        rotmat = self.euler_to_rotation_matrix(self.rpy)
+        rotmat = euler_to_rotation_matrix(self.rpy)
         pointcloud = rotate_pointcloud(pointcloud, rotmat)
         pointcloud = crop_pointcloud_bb(pointcloud, self.min_bound, self.max_bound)
         if self.downsample_enabled:
@@ -257,19 +260,6 @@ class VisualizePointCloud:
         line_set.paint_uniform_color([1.0, 0.0, 0.0])
         return line_set
 
-    def euler_to_rotation_matrix(self, rpy_deg):
-        r, p, y = np.deg2rad(rpy_deg)
-        Rx = np.array(
-            [[1, 0, 0], [0, np.cos(r), -np.sin(r)], [0, np.sin(r), np.cos(r)]]
-        )
-        Ry = np.array(
-            [[np.cos(p), 0, np.sin(p)], [0, 1, 0], [-np.sin(p), 0, np.cos(p)]]
-        )
-        Rz = np.array(
-            [[np.cos(y), -np.sin(y), 0], [np.sin(y), np.cos(y), 0], [0, 0, 1]]
-        )
-        return Rz @ Ry @ Rx
-
     def toggle_downsample(self, vis, action, mods):
         if action != 1:
             return False
@@ -295,10 +285,17 @@ class VisualizePointCloud:
         if action != 1:
             return False
         print("---bounding box parameter---")
-        print(f"[roll pitch yaw] : {self.rpy}")
-        print(f"[min_x min_y min_z] : {self.min_bound}")
-        print(f"[max_x max_y max_z] : {self.max_bound}")
+        print(f"--min_bound {self.min_bound[0]} {self.min_bound[1]} {self.min_bound[2]} --max_bound {self.max_bound[0]} {self.max_bound[1]} {self.max_bound[2]}", end=" ")
+        print(f"--rpy_angle {self.rpy[0]} {self.rpy[1]} {self.rpy[2]}")
         self.quit_flag = True
+        return False
+    
+    def print_callback(self, vis, action, mods):
+        if action != 1:
+            return False
+        print("---bounding box parameter---")
+        print(f"--min_bound {self.min_bound[0]} {self.min_bound[1]} {self.min_bound[2]} --max_bound {self.max_bound[0]} {self.max_bound[1]} {self.max_bound[2]}", end=" ")
+        print(f"--rpy_angle {self.rpy[0]} {self.rpy[1]} {self.rpy[2]}")
         return False
 
 

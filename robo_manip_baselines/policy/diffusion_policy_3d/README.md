@@ -7,11 +7,17 @@ See [here](../../../doc/install.md#3D-Diffusion-policy) for installation.
 Collect demonstration data by [teleoperation](../../teleop).
 
 ## Data preprocessing
+Decide the parameter of the bounding box for cropping the point cloud:
+```console
+# Go to the top directory of this repository
+$ cd robo_manip_baselines
+$ python ./misc/VisualizePointCloud.py ./dataset/<dataset_name>/<rmb_file_name>
+```
 Generate and store point clouds from RGB and depth images:
 ```console
 # Go to the top directory of this repository
 $ cd robo_manip_baselines
-$ python ./misc/AddPointCloudToRmbData.py ./dataset/<dataset_name> --min_bound <x, y, z> --max_bound <x, y, z>
+$ python ./misc/AddPointCloudToRmbData.py ./dataset/<dataset_name> --min_bound <x, y, z> --max_bound <x, y, z> --rpy_angle <roll, pitch, yaw>
 ```
 You can specify the bounding box for cropping using the `--min_bound` and `--max_bound` options. If these arguments are omitted, the default values for MujocoUR5eCable will be applied.
 

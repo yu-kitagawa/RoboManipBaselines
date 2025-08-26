@@ -25,20 +25,7 @@ from robo_manip_baselines.common.utils.Vision3dUtils import (
     downsample_pointcloud_fps,
     rotate_pointcloud,
 )
-
-
-def euler_to_rotation_matrix(rpy_deg):
-    r, p, y = np.deg2rad(rpy_deg)
-    Rx = np.array(
-        [[1, 0, 0], [0, np.cos(r), -np.sin(r)], [0, np.sin(r), np.cos(r)]]
-    )
-    Ry = np.array(
-        [[np.cos(p), 0, np.sin(p)], [0, 1, 0], [-np.sin(p), 0, np.cos(p)]]
-    )
-    Rz = np.array(
-        [[np.cos(y), -np.sin(y), 0], [np.sin(y), np.cos(y), 0], [0, 0, 1]]
-    )
-    return Rz @ Ry @ Rx
+from robo_manip_baselines.common.utils.MathUtils import euler_to_rotation_matrix
 
 
 class RolloutDiffusionPolicy3d(RolloutBase):
@@ -58,7 +45,7 @@ class RolloutDiffusionPolicy3d(RolloutBase):
         )
         data_info = self.model_meta_info["data"]
         print(
-            f"  - with color: {data_info['use_pc_color']}, num points: {data_info['num_points']}, image size: {data_info['image_size']}, min bound: {data_info['min_bound']}, max bound: {data_info['max_bound']}, roll_pitch_yaw: {data_info['roll_pitch_yaw']}"
+            f"  - with color: {data_info['use_pc_color']}, num points: {data_info['num_points']}, image size: {data_info['image_size']}, min bound: {data_info['min_bound']}, max bound: {data_info['max_bound']}, rpy_angle: {data_info['rpy_angle']}"
         )
 
         # Construct policy
@@ -157,7 +144,7 @@ class RolloutDiffusionPolicy3d(RolloutBase):
             axis=1,
         )
         # Crop and downsample pointcloud
-        rotmat = euler_to_rotation_matrix(self.model_meta_info["data"]["roll_pitch_yaw"])
+        rotmat = euler_to_rotation_matrix(self.model_meta_info["data"]["rpy_angle"])
         pointcloud = rotate_pointcloud(pointcloud, rotmat)
         pointcloud = crop_pointcloud_bb(
             pointcloud,
