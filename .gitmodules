@@ -24,3 +24,6 @@
 [submodule "third_party/3D-Diffusion-Policy"]
 	path = third_party/3D-Diffusion-Policy
 	url = https://github.com/Naoki-Shibayama/3D-Diffusion-Policy.git
+[submodule "third_party/pyorbbecsdk"]
+	path = third_party/pyorbbecsdk
+	url = https://github.com/orbbec/pyorbbecsdk.git

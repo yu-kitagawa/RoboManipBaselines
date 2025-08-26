@@ -19,6 +19,7 @@ from robo_manip_baselines.common.utils.Vision3dUtils import (
 class VisualizePointCloud:
     def __init__(self):
         self.setup_args()
+        self.setup_spacemouse()
 
     def setup_args(self):
         parser = argparse.ArgumentParser(
@@ -32,8 +33,14 @@ class VisualizePointCloud:
         )
         parser.add_argument("--max_bound", type=float, nargs=3, default=[1.0, 1.0, 1.0])
         parser.add_argument("--num_points", type=int, default=512)
-        parser.add_argument("--roll_pitch_yaw", type=float, nargs=3, default=[0, 0, 0])
+        parser.add_argument("--rpy_angle", type=float, nargs=3, default=[0, 0, 0])
         self.args = parser.parse_args()
+
+    def setup_spacemouse(self):
+        try:
+            self.spacemouse = pyspacemouse.open()
+        except:
+            self.spacemouse = None
 
     def run(self):
         self.vis = o3d.visualization.VisualizerWithKeyCallback()
@@ -48,9 +55,8 @@ class VisualizePointCloud:
 
         self.min_bound = np.array(self.args.min_bound)
         self.max_bound = np.array(self.args.max_bound)
-        self.rpy = np.array(self.args.roll_pitch_yaw)
+        self.rpy = np.array(self.args.rpy_angle)
         self.downsample_enabled = False
-        self.spacemouse = pyspacemouse.open(dof_callback=self.modify_bound_with_spacemouse)
 
         print("[Keys] <-/->: time step | Esc: exit | O: toggle downsample")
         print("E/D: min_x +/- | R/F: max_x +/-")
@@ -81,14 +87,21 @@ class VisualizePointCloud:
             self.update_pointcloud()
 
             while not self.quit_flag:
-                self.state = self.spacemouse.read()
+                # Empirically, you can call read repeatedly to get the latest device state
+                if self.spacemouse is not None:
+                    self.update_spacemouse()
+
                 self.vis.poll_events()
                 self.vis.update_renderer()
+
                 time.sleep(0.01)
 
         self.vis.destroy_window()
 
-    def modify_bound_with_spacemouse(self, state):
+    def update_spacemouse(self):
+        for i in range(10):
+            state = self.spacemouse.read()
+
         self.min_bound[0] += state.y * 0.02
         self.max_bound[0] += state.y * 0.02
         self.min_bound[1] += state.z * -0.02
