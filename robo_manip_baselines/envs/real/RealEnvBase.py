@@ -1,21 +1,16 @@
 import concurrent.futures
 import os
 import re
+import sys
 import time
 from abc import ABC, abstractmethod
-import sys
 
 import cv2
 import gymnasium as gym
 import numpy as np
-import open3d as o3d
 from gello.cameras.realsense_camera import RealSenseCamera, get_device_ids
 
 from robo_manip_baselines.common import ArmConfig, DataKey, EnvDataMixin
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../../../real/pyorbbecsdk"))
-from pyorbbecsdk import *
-from pyorbbecsdk.utils import frame_to_bgr_image
 
 
 class RealEnvBase(EnvDataMixin, gym.Env, ABC):
@@ -93,34 +88,72 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                 raise RuntimeError(
                     f"[{self.__class__.__name__}] Specified GelSight (name: {rgb_tactile_name}, ID: {gelsight_id}) not detected."
                 )
-    
-    def setup_femtobolt(self):
 
-        context = Context()
-        self.pipeline = Pipeline()
-        config = Config()
-        self.temporal_filter = TemporalFilter(alpha=0.5)
-        depth_profile_list = self.pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
-        if depth_profile_list is None:
-            print("No proper depth profile, can not generate point cloud")
-            return
-        depth_profile = depth_profile_list.get_default_video_stream_profile()
-        config.enable_stream(depth_profile)
-        self.has_color_sensor = False
-        try:
-            profile_list = self.pipeline.get_stream_profile_list(OBSensorType.COLOR_SENSOR)
-            if profile_list is not None:
-                color_profile = profile_list.get_default_video_stream_profile()
-                config.enable_stream(color_profile)
-                self.has_color_sensor = True
-        except OBError as e:
-            print(e)
-        self.pipeline.enable_frame_sync()
-        self.pipeline.start(config)
-        camera_param = self.pipeline.get_camera_param()
-        self.align_filter = AlignFilter(align_to_stream=OBStreamType.COLOR_STREAM)
-        self.point_cloud_filter = PointCloudFilter()
-        self.point_cloud_filter.set_camera_param(camera_param)
+    def setup_femtobolt(self, camera_ids):
+        sys.path.append(
+            os.path.join(os.path.dirname(__file__), "../../../third_party/pyorbbecsdk")
+        )
+        from pyorbbecsdk import (
+            AlignFilter,
+            Config,
+            Context,
+            OBError,
+            OBFormat,
+            OBSensorType,
+            OBStreamType,
+            Pipeline,
+            PointCloudFilter,
+            TemporalFilter,
+        )
+
+        self.pointcloud_cameras = {}
+        self.ob_rgb_point = OBFormat.RGB_POINT
+        self.ob_point = OBFormat.POINT
+
+        ctx = Context()
+        device_list = ctx.query_devices()
+        curr_device_cnt = device_list.get_count()
+        # camera_ids : (str: camera_name, int: device_num)
+        for camera_name, camera_id in camera_ids.items():
+            if camera_id > curr_device_cnt:
+                raise RuntimeError(
+                    f"[{self.__class__.__name__}] Specified camera (name: {camera_name}, ID: {camera_id}) not detected. Max camera ID: {curr_device_cnt}"
+                )
+            pointcloud_camera = {}
+            device = device_list.get_device_by_index(camera_id)
+            pipeline = Pipeline(device)
+            config = Config()
+            self.temporal_filter = TemporalFilter(alpha=0.5)
+            depth_profile_list = pipeline.get_stream_profile_list(
+                OBSensorType.DEPTH_SENSOR
+            )
+            if depth_profile_list is None:
+                print("No proper depth profile, can not generate point cloud")
+                return
+            depth_profile = depth_profile_list.get_default_video_stream_profile()
+            config.enable_stream(depth_profile)
+            has_color_sensor = False
+            try:
+                profile_list = pipeline.get_stream_profile_list(
+                    OBSensorType.COLOR_SENSOR
+                )
+                if profile_list is not None:
+                    color_profile = profile_list.get_default_video_stream_profile()
+                    config.enable_stream(color_profile)
+                    has_color_sensor = True
+            except OBError as e:
+                print(e)
+            pipeline.enable_frame_sync()
+            pipeline.start(config)
+            camera_param = pipeline.get_camera_param()
+            self.align_filter = AlignFilter(align_to_stream=OBStreamType.COLOR_STREAM)
+            point_cloud_filter = PointCloudFilter()
+            point_cloud_filter.set_camera_param(camera_param)
+            pointcloud_camera["pipeline"] = pipeline
+            pointcloud_camera["has_color_sensor"] = has_color_sensor
+            pointcloud_camera["point_cloud_filter"] = point_cloud_filter
+
+            self.pointcloud_cameras[camera_name] = pointcloud_camera
 
     def get_input_device_kwargs(self, input_device_name):
         return {}
@@ -223,10 +256,17 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                     camera_name
                 )
 
-            rgb_3dcamera_name = "femto"
-            futures[executor.submit(self.get_image_pointcloud, rgb_3dcamera_name)] = (
-                rgb_3dcamera_name
-            )
+            for (
+                pointcloud_camera_name,
+                pointcloud_camera,
+            ) in self.pointcloud_cameras.items():
+                futures[
+                    executor.submit(
+                        self.get_image_pointcloud,
+                        pointcloud_camera_name,
+                        pointcloud_camera,
+                    )
+                ] = pointcloud_camera_name
 
             for rgb_tactile_name, rgb_tactile in self.rgb_tactiles.items():
                 futures[
@@ -258,9 +298,11 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         image_size = (640, 480)
         rgb_image = cv2.resize(rgb_image, image_size)
         return rgb_tactile_name, rgb_image, None
-    
-    def get_image_pointcloud(self, rgb_3dcamera_name):
-        frames = self.pipeline.wait_for_frames(100)
+
+    def get_image_pointcloud(self, pointcloud_camera_name, pointcloud_camera):
+        from pyorbbecsdk.utils import frame_to_bgr_image
+
+        frames = pointcloud_camera["pipeline"].wait_for_frames(100)
         depth_frame = frames.get_depth_frame()
         width = depth_frame.get_width()
         height = depth_frame.get_height()
@@ -277,13 +319,18 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         color_image = frame_to_bgr_image(color_frame)
         frame = self.align_filter.process(frames)
         scale = depth_frame.get_depth_scale()
-        self.point_cloud_filter.set_position_data_scaled(scale)
+        pointcloud_camera["point_cloud_filter"].set_position_data_scaled(scale)
 
-        self.point_cloud_filter.set_create_point_format(
-            OBFormat.RGB_POINT if self.has_color_sensor and color_frame is not None else OBFormat.POINT)
-        point_cloud_frame = self.point_cloud_filter.process(frame)
-        points = np.array(self.point_cloud_filter.calculate(point_cloud_frame))
-        return rgb_3dcamera_name, color_image, depth_image, points
+        pointcloud_camera["point_cloud_filter"].set_create_point_format(
+            self.ob_rgb_point
+            if pointcloud_camera["has_color_sensor"] and color_frame is not None
+            else self.ob_point
+        )
+        point_cloud_frame = pointcloud_camera["point_cloud_filter"].process(frame)
+        points = np.array(
+            pointcloud_camera["point_cloud_filter"].calculate(point_cloud_frame)
+        )
+        return pointcloud_camera_name, color_image, depth_image, points
 
     def get_joint_pos_from_obs(self, obs):
         """Get joint position from observation."""
