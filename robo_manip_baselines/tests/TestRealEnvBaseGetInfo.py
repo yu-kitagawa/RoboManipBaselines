@@ -15,9 +15,12 @@ TACTILE_ID_RIGHT = "GelSight Mini R0B 2BG8-0H3X: Ge"
 
 
 class DummyRealEnv(RealEnvBase):
-    def __init__(self, camera_ids, gelsight_ids):
+    def __init__(self, camera_ids, gelsight_ids, pointcloud_camera_ids=None):
         super().__init__(
-            robot_ip=None, camera_ids=camera_ids, gelsight_ids=gelsight_ids
+            robot_ip=None,
+            camera_ids=camera_ids,
+            gelsight_ids=gelsight_ids,
+            pointcloud_camera_ids=pointcloud_camera_ids,
         )
         self.setup_realsense(camera_ids)
 
@@ -25,6 +28,8 @@ class DummyRealEnv(RealEnvBase):
         #     the device ID can change after unplugging and changing the usb ports.
         #     on linux run, v4l2-ctl --list-devices, in the terminal to get the device ID for camera
         self.setup_gelsight(gelsight_ids)
+        if pointcloud_camera_ids is not None:
+            self.setup_femtobolt(pointcloud_camera_ids)
 
     def _reset_robot(self, *args, **kwargs):
         pass
@@ -43,12 +48,17 @@ class DummyRealEnv(RealEnvBase):
     def rgb_tactile_names(self):
         return self.rgb_tactiles.keys()
 
+    @property
+    def pointcloud_camera_names(self):
+        return self.pointcloud_cameras.keys()
+
 
 class TestRealEnvBaseGetInfo(unittest.TestCase):
     def assert_env_info_valid(self, dummy_real_env):
         info = dummy_real_env._get_info()
         self.assert_camera_images_valid(dummy_real_env, info)
         self.assert_tactile_images_valid(dummy_real_env, info)
+        self.assert_pointcloud_images_valid(dummy_real_env, info)
 
     def assert_camera_images_valid(self, dummy_real_env, info):
         for camera_name in dummy_real_env.camera_names:
@@ -75,6 +85,19 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
             depth_image = info["depth_images"][rgb_tactile_name]
             self.assertIsNone(depth_image)
 
+    def assert_pointcloud_images_valid(self, dummy_real_env, info):
+        for pointcloud_camera_name in dummy_real_env.pointcloud_camera_names:
+            rgb_image = info["rgb_images"][pointcloud_camera_name]
+            self.assertIsInstance(rgb_image, np.ndarray)
+            self.assertEqual(rgb_image.dtype, np.uint8)
+            self.assertEqual(len(rgb_image.shape), 3)
+            self.assertEqual(rgb_image.shape[-1], 3)
+
+            depth_image = info["depth_images"][pointcloud_camera_name]
+            self.assertIsNone(depth_image)
+            point_cloud = info["point_clouds"][pointcloud_camera_name]
+            self.assertIsNone(point_cloud)
+
     def show_image_loop(self, dummy_real_env):
         print("press q on image to exit")
         try:
@@ -96,6 +119,34 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
             print("Interrupted!")
             cv2.waitKey(0)
             cv2.destroyAllWindows()
+
+    def show_point_cloud(self, dummy_real_env):
+        import open3d as o3d
+
+        print("press Ctrl+C to exit")
+        vis_list = []
+        for i, camera_name in enumerate(dummy_real_env.pointcloud_camera_names):
+            vis_list.append(o3d.visualization.Visualizer())
+            vis_list[i].create_window()
+        try:
+            while True:
+                # get rgb image
+                info = dummy_real_env._get_info()
+                for i, camera_name in enumerate(dummy_real_env.pointcloud_camera_names):
+                    points = info["point_clouds"][camera_name]
+                    if points is None:
+                        continue
+                    pcd = o3d.geometry.PointCloud()
+                    pcd.points = o3d.utility.Vector3dVector(points[:, :3])
+                    if points.shape[1] == 6:
+                        pcd.colors = o3d.utility.Vector3dVector(points[:, 3:6] / 255.0)
+                    vis_list[i].clear_geometries()
+                    vis_list[i].add_geometry(pcd)
+                    vis_list[i].poll_events()
+                    vis_list[i].update_renderer()
+
+        except Exception as e:
+            print(e)
 
     @unittest.skip("Skipping.")
     def test_dummy_real_env_get_info_case1(self):
@@ -157,6 +208,7 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
         self.assert_env_info_valid(dummy_real_env)
         self.show_image_loop(dummy_real_env)
 
+    @unittest.skip("Skipping.")
     def test_dummy_real_env_get_info_case7(self):
         dummy_real_env = DummyRealEnv(
             camera_ids={"front": CAMERA_ID_FRONT},
@@ -178,6 +230,13 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
         )
         self.assert_env_info_valid(dummy_real_env)
         self.show_image_loop(dummy_real_env)
+
+    def test_dummy_real_env_get_pointcloud(self):
+        dummy_real_env = DummyRealEnv(
+            camera_ids={}, gelsight_ids={}, pointcloud_camera_ids={"femtobolt": 0}
+        )
+        # self.assert_env_info_valid(dummy_real_env)
+        self.show_point_cloud(dummy_real_env)
 
 
 if __name__ == "__main__":

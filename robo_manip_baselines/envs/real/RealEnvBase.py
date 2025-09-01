@@ -4,6 +4,7 @@ import re
 import sys
 import time
 from abc import ABC, abstractmethod
+from queue import Queue
 
 import cv2
 import gymnasium as gym
@@ -89,6 +90,12 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                     f"[{self.__class__.__name__}] Specified GelSight (name: {rgb_tactile_name}, ID: {gelsight_id}) not detected."
                 )
 
+    def on_new_frame_callback(self, frames, camera_name):
+        if frames is not None:
+            if self.frames_queue[camera_name].qsize() >= 5:
+                self.frames_queue[camera_name].get()
+            self.frames_queue[camera_name].put(frames)
+
     def setup_femtobolt(self, camera_ids):
         sys.path.append(
             os.path.join(os.path.dirname(__file__), "../../../third_party/pyorbbecsdk")
@@ -103,27 +110,27 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
             OBStreamType,
             Pipeline,
             PointCloudFilter,
-            TemporalFilter,
         )
 
         self.pointcloud_cameras = {}
         self.ob_rgb_point = OBFormat.RGB_POINT
         self.ob_point = OBFormat.POINT
+        self.frames_queue = {}
 
         ctx = Context()
         device_list = ctx.query_devices()
         curr_device_cnt = device_list.get_count()
-        # camera_ids : (str: camera_name, int: device_num)
+        # camera_ids : {camera_name: device_num -> int}
         for camera_name, camera_id in camera_ids.items():
             if camera_id > curr_device_cnt:
                 raise RuntimeError(
                     f"[{self.__class__.__name__}] Specified camera (name: {camera_name}, ID: {camera_id}) not detected. Max camera ID: {curr_device_cnt}"
                 )
             pointcloud_camera = {}
+            self.frames_queue[camera_name] = Queue()
             device = device_list.get_device_by_index(camera_id)
             pipeline = Pipeline(device)
             config = Config()
-            self.temporal_filter = TemporalFilter(alpha=0.5)
             depth_profile_list = pipeline.get_stream_profile_list(
                 OBSensorType.DEPTH_SENSOR
             )
@@ -143,14 +150,19 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                     has_color_sensor = True
             except OBError as e:
                 print(e)
+            pointcloud_camera["has_color_sensor"] = has_color_sensor
             pipeline.enable_frame_sync()
-            pipeline.start(config)
+            pipeline.start(
+                config,
+                lambda frame_set, camera_name=camera_name: self.on_new_frame_callback(
+                    frame_set, camera_name
+                ),
+            )
             camera_param = pipeline.get_camera_param()
             self.align_filter = AlignFilter(align_to_stream=OBStreamType.COLOR_STREAM)
             point_cloud_filter = PointCloudFilter()
             point_cloud_filter.set_camera_param(camera_param)
             pointcloud_camera["pipeline"] = pipeline
-            pointcloud_camera["has_color_sensor"] = has_color_sensor
             pointcloud_camera["point_cloud_filter"] = point_cloud_filter
 
             self.pointcloud_cameras[camera_name] = pointcloud_camera
@@ -242,12 +254,18 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
     def _get_info(self):
         info = {}
 
-        if len(self.camera_names) + len(self.rgb_tactile_names) == 0:
+        if (
+            len(self.camera_names)
+            + len(self.rgb_tactile_names)
+            + len(self.pointcloud_camera_names)
+            == 0
+        ):
             return info
 
         # Get images
         info["rgb_images"] = {}
         info["depth_images"] = {}
+        info["point_clouds"] = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {}
 
@@ -279,10 +297,33 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                 name, rgb_image, depth_image, points = future.result()
                 info["rgb_images"][name] = rgb_image
                 info["depth_images"][name] = depth_image
-                if points is not None:
-                    info["point_cloud"] = points
+                info["point_clouds"][name] = points
 
         return info
+
+    def frame_to_bgr_image(self, frame):
+        from pyorbbecsdk import OBFormat
+
+        width = frame.get_width()
+        height = frame.get_height()
+        color_format = frame.get_format()
+        data = np.asanyarray(frame.get_data())
+        image = np.zeros((height, width, 3), dtype=np.uint8)
+        if color_format == OBFormat.RGB:
+            image = np.resize(data, (height, width, 3))
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        elif color_format == OBFormat.BGR:
+            image = np.resize(data, (height, width, 3))
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        elif color_format == OBFormat.YUYV:
+            image = np.resize(data, (height, width, 2))
+            image = cv2.cvtColor(image, cv2.COLOR_YUV2BGR_YUYV)
+        elif color_format == OBFormat.MJPG:
+            image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        else:
+            print("Unsupported color format: {}".format(color_format))
+            return None
+        return image
 
     def get_camera_image(self, camera_name, camera):
         rgb_image, depth_image = camera.read((640, 480))
@@ -300,10 +341,17 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         return rgb_tactile_name, rgb_image, None
 
     def get_image_pointcloud(self, pointcloud_camera_name, pointcloud_camera):
-        from pyorbbecsdk.utils import frame_to_bgr_image
-
-        frames = pointcloud_camera["pipeline"].wait_for_frames(100)
+        color_image = None
+        depth_image = None
+        points = None
+        frames = self.frames_queue[pointcloud_camera_name].get()
+        color_frame = frames.get_color_frame()
+        if color_frame is None:
+            return pointcloud_camera_name, None, None, None
+        color_image = self.frame_to_bgr_image(color_frame)
         depth_frame = frames.get_depth_frame()
+        if depth_frame is None:
+            return pointcloud_camera_name, color_image, None, None
         width = depth_frame.get_width()
         height = depth_frame.get_height()
         scale = depth_frame.get_depth_scale()
@@ -312,13 +360,11 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         depth_data = depth_data.reshape((height, width))
 
         depth_data = depth_data.astype(np.float32) * scale
-        depth_data = np.where((depth_data > 20) & (depth_data < 10000), depth_data, 0)
-        depth_data = depth_data.astype(np.uint16)
-        depth_image = self.temporal_filter.process(depth_data)
-        color_frame = frames.get_color_frame()
-        color_image = frame_to_bgr_image(color_frame)
+        depth_image = cv2.normalize(
+            depth_data, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
+        )
+        depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
         frame = self.align_filter.process(frames)
-        scale = depth_frame.get_depth_scale()
         pointcloud_camera["point_cloud_filter"].set_position_data_scaled(scale)
 
         pointcloud_camera["point_cloud_filter"].set_create_point_format(
@@ -374,6 +420,11 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
     def rgb_tactile_names(self):
         """Get names of tactile sensors with RGB output."""
         return list(self.rgb_tactiles.keys())
+
+    @property
+    def pointcloud_camera_names(self):
+        """Get pointcloud camera names."""
+        return list(self.pointcloud_cameras.keys())
 
     def get_camera_fovy(self, camera_name):
         """Get vertical field-of-view of the camera."""
