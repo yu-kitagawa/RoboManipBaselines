@@ -6,6 +6,7 @@ import matplotlib.pylab as plt
 import numpy as np
 import torch
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
+import rerun as rr
 
 sys.path.append(
     os.path.join(
@@ -220,7 +221,10 @@ class RolloutDiffusionPolicy3d(RolloutBase):
 
         # Finalize plot
         self.canvas.draw()
-        cv2.imshow(
-            self.policy_name,
-            cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
-        )
+        if self.args.use_rerun:
+            rr.log("plot/image", rr.Image(np.asarray(self.canvas.buffer_rgba())))
+        else:
+            cv2.imshow(
+                self.policy_name,
+                cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
+            )

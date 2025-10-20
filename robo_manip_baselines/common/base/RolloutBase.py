@@ -15,6 +15,7 @@ import torch
 import yaml
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from torchvision.transforms import v2
+import rerun as rr
 
 from ..data.DataKey import DataKey
 from ..data.OperationDataMixin import OperationDataMixin
@@ -308,6 +309,11 @@ class RolloutBase(OperationDataMixin, ABC):
             parser.add_argument(
                 "--task_desc", type=str, required=True, help="task description"
             )
+        parser.add_argument(
+            "--use_rerun",
+            action="store_true",
+            help="whether to use rerun",
+        )
 
         self.set_additional_args(parser)
 
@@ -361,6 +367,8 @@ class RolloutBase(OperationDataMixin, ABC):
 
     def setup_plot(self, fig_ax=None):
         matplotlib.use("agg")
+        if self.args.use_rerun:
+            rr.init("Rollout Progress", spawn=True)
 
         if fig_ax is None:
             self.fig, self.ax = plt.subplots(
@@ -375,10 +383,11 @@ class RolloutBase(OperationDataMixin, ABC):
 
         self.canvas = FigureCanvasAgg(self.fig)
         self.canvas.draw()
-        cv2.imshow(
-            self.policy_name,
-            cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
-        )
+        # cv2.imshow(
+        #     self.policy_name,
+        #     cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
+        # )
+        rr.log("plot/image", rr.Image(np.asarray(self.canvas.buffer_rgba())))
 
         if self.args.win_xy_plot is not None:
             cv2.moveWindow(self.policy_name, *self.args.win_xy_plot)
@@ -475,10 +484,13 @@ class RolloutBase(OperationDataMixin, ABC):
 
             self.canvas = FigureCanvasAgg(self.fig)
             self.canvas.draw()
-            cv2.imshow(
-                self.policy_name,
-                cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
-            )
+            if self.args.use_rerun:
+                rr.log("plot/image", rr.Image(np.asarray(self.canvas.buffer_rgba())))
+            else:
+                cv2.imshow(
+                    self.policy_name,
+                    cv2.cvtColor(np.asarray(self.canvas.buffer_rgba()), cv2.COLOR_RGB2BGR),
+                )
 
         # Reset motion manager
         self.motion_manager.reset()

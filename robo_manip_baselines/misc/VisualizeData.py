@@ -1,11 +1,14 @@
 import argparse
 import io
 import os
+import time
 
 import cv2
 import matplotlib.pylab as plt
 import numpy as np
 from tqdm import tqdm
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+import rerun as rr
 
 from robo_manip_baselines.common import (
     DataKey,
@@ -50,6 +53,11 @@ def parse_argument():
         action="store_true",
         help="Whether to visualize the point cloud stored in the log file instead of generating it from depth image",
     )
+    parser.add_argument(
+        "--use_rerun",
+        action="store_true",
+        help="whether to use rerun",
+    )
     return parser.parse_args()
 
 
@@ -63,12 +71,14 @@ class VisualizeData:
         rgb_crop_size_list,
         use_pointcloud_camera,
         display_stored_pointcloud,
+        use_rerun,
     ):
         self.use_pointcloud_camera = use_pointcloud_camera
         if self.use_pointcloud_camera:
             self.display_stored_pointcloud = True
         else:
             self.display_stored_pointcloud = display_stored_pointcloud
+        self.use_rerun = use_rerun
 
         self.setup_data(rmb_filename, skip, rgb_crop_size_list)
 
@@ -315,6 +325,8 @@ class VisualizeData:
         )
 
     def plot(self):
+        if self.use_rerun:
+            rr.init("Data Progress", spawn=True)
         for time_idx in tqdm(
             range(0, len(self.data_manager.get_data_seq(DataKey.TIME)), self.skip),
             desc=self.ax[0, 0].plot.__name__,
@@ -406,9 +418,15 @@ class VisualizeData:
                     rgb_image,
                     depth_image,
                 )
-
-            plt.draw()
-            plt.pause(0.001)
+            if self.use_rerun:
+                canvas = FigureCanvasAgg(self.fig)
+                canvas.draw()
+                image = np.asarray(canvas.buffer_rgba())
+                rr.log("plot/image", rr.Image(image))
+                time.sleep(0.03)
+            else:
+                plt.draw()
+                plt.pause(0.001)
 
             if self.video_writer is not None:
                 buf = io.BytesIO()
@@ -430,7 +448,8 @@ class VisualizeData:
 
         print(f"[{self.__class__.__name__}] Press 'Q' or 'Esc' to quit.")
 
-        plt.show()
+        if not self.use_rerun:
+            plt.show()
 
     def clear_axis(self, ax):
         for child in ax.get_children():
