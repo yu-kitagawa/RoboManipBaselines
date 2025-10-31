@@ -2,6 +2,8 @@ import argparse
 import io
 import os
 import time
+import random
+import string
 
 import cv2
 import matplotlib.pylab as plt
@@ -9,6 +11,7 @@ import numpy as np
 from tqdm import tqdm
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import rerun as rr
+import rerun.blueprint as rrb
 
 from robo_manip_baselines.common import (
     DataKey,
@@ -143,20 +146,68 @@ class VisualizeData:
     def setup_plot(self):
         plt.rcParams["keymap.quit"] = ["q", "escape"]
 
-        self.fig, self.ax = plt.subplots(
-            len(self.camera_names) + 1, 4, figsize=(16.0, 12.0), constrained_layout=True
-        )
-        for ax_idx in range(1, len(self.camera_names) + 1):
-            self.ax[ax_idx, 2].remove()
-            self.ax[ax_idx, 3].remove()
-            self.ax[ax_idx, 2] = self.fig.add_subplot(
-                len(self.camera_names) + 1, 4, 4 * (ax_idx + 1) - 1, projection="3d"
+        self.quit_flag = False
+        if self.use_rerun:
+            rr.init("Data Progress", spawn=True)
+            bp = rrb.Blueprint(
+                rrb.Vertical(
+                    rrb.Horizontal(
+                        rrb.TimeSeriesView(origin="graph/joint_pos"),
+                        rrb.TimeSeriesView(origin="graph/gripper"),
+                        rrb.TimeSeriesView(origin="graph/joint_vel"),
+                        rrb.TimeSeriesView(origin="graph/eef_pose"),
+                        rrb.TimeSeriesView(origin="graph/eef_wrench"),
+                    ),
+                    rrb.Horizontal(
+                        rrb.Spatial2DView(origin="front/rgb"),
+                        rrb.Spatial2DView(origin="front/depth"),
+                        rrb.Spatial3DView(origin="front/pointcloud"),
+                    ),
+                    rrb.Horizontal(
+                        rrb.Spatial2DView(origin="side/rgb"),
+                        rrb.Spatial2DView(origin="side/depth"),
+                        rrb.Spatial3DView(origin="side/pointcloud"),
+                    ),
+                    rrb.Horizontal(
+                        rrb.Spatial2DView(origin="hand/rgb"),
+                        rrb.Spatial2DView(origin="hand/depth"),
+                        rrb.Spatial3DView(origin="hand/pointcloud"),
+                    ),
+                )
             )
 
-        self.quit_flag = False
-        self.scatter_list = [None] * len(self.camera_names)
+            #rr.send_blueprint(bp)
+            for i in range(len(self.data_manager.get_single_data(DataKey.MEASURED_JOINT_POS, 0))-1):
+                rr.log(f"graph/joint_pos/measured{i}", rr.SeriesLines(widths=2), static=True)
+                rr.log(f"graph/joint_pos/command{i}", rr.SeriesLines(widths=1), static=True)
+            rr.log("graph/gripper/measured", rr.SeriesLines(widths=2), static=True)
+            rr.log("graph/gripper/command", rr.SeriesLines(widths=1), static=True)
+            for i in range(len(self.data_manager.get_single_data(DataKey.MEASURED_JOINT_VEL, 0))-1):
+                rr.log(f"graph/joint_vel/vel{i}", rr.SeriesLines(widths=2), static=True)
+            for i in range(3):
+                rr.log(f"graph/eef_pose/m_pos{i}", rr.SeriesLines(widths=2), static=True)
+                rr.log(f"graph/eef_pose/c_pos{i}", rr.SeriesLines(widths=1), static=True)
+            for i in range(3, len(self.data_manager.get_single_data(DataKey.MEASURED_EEF_POSE, 0))):
+                rr.log(f"graph/eef_pose/m_quat{i}", rr.SeriesLines(widths=2), static=True)
+                rr.log(f"graph/eef_pose/c_quat{i}", rr.SeriesLines(widths=1), static=True)
+            for i in range(len(self.data_manager.get_single_data(DataKey.MEASURED_EEF_WRENCH, 0))):
+                rr.log(f"graph/eef_wrench/wrench{i}", rr.SeriesLines(widths=2), static=True)
+            for camera_name in self.camera_names:
+                rr.log(f"{camera_name}/pointcloud/rotate", rr.Transform3D(rotation=rr.RotationAxisAngle(axis=(-1, 0, 0), degrees=90)))
+        else:
+            self.fig, self.ax = plt.subplots(
+                len(self.camera_names) + 1, 4, figsize=(16.0, 12.0), constrained_layout=True
+            )
+            for ax_idx in range(1, len(self.camera_names) + 1):
+                self.ax[ax_idx, 2].remove()
+                self.ax[ax_idx, 3].remove()
+                self.ax[ax_idx, 2] = self.fig.add_subplot(
+                    len(self.camera_names) + 1, 4, 4 * (ax_idx + 1) - 1, projection="3d"
+                )
 
-        self.init_axes_limits()
+            self.scatter_list = [None] * len(self.camera_names)
+
+            self.init_axes_limits()
 
     def init_axes_limits(self):
         time_range = (
@@ -210,7 +261,7 @@ class VisualizeData:
         self.mp4_codec = mp4_codec
         self.output_mp4_filename = output_mp4_filename
 
-        if self.output_mp4_filename:
+        if self.output_mp4_filename and not self.use_rerun:
             base, ext = os.path.splitext(self.output_mp4_filename)
             if ext.lower() != ".mp4":
                 print(
@@ -233,9 +284,8 @@ class VisualizeData:
         else:
             self.video_writer = None
 
-    def handle_rgb_image(self, camera_idx, time_idx, rgb_key):
+    def handle_rgb_image(self, camera_idx, camera_name, time_idx, rgb_key):
         ax_idx = camera_idx + 1
-        self.ax[ax_idx, 0].axis("off")
         rgb_image = self.data_manager.get_single_data(rgb_key, time_idx)
         if self.rgb_crop_size_list is None:
             rgb_image_to_show = rgb_image
@@ -244,11 +294,22 @@ class VisualizeData:
                 rgb_image[np.newaxis], crop_size=self.rgb_crop_size_list[camera_idx]
             )[0]
         rgb_image_skip = 4
-        self.ax[ax_idx, 0].imshow(rgb_image_to_show[::rgb_image_skip, ::rgb_image_skip])
+        if self.use_rerun:
+            rr.log(f"{camera_name}/rgb", rr.Image(rgb_image_to_show[::rgb_image_skip, ::rgb_image_skip]))
+        else:
+            self.ax[ax_idx, 0].axis("off")
+            self.ax[ax_idx, 0].imshow(rgb_image_to_show[::rgb_image_skip, ::rgb_image_skip])
         return rgb_image
 
-    def handle_depth_image(self, camera_idx, time_idx, depth_key):
+    def handle_depth_image(self, camera_idx, camera_name, time_idx, depth_key):
         ax_idx = camera_idx + 1
+        if self.use_rerun:
+            if depth_key not in self.data_manager.all_data_seq.keys():
+                return None
+            depth_image = self.data_manager.get_single_data(depth_key, time_idx)
+            depth_image_skip = 4
+            rr.log(f"{camera_name}/depth", rr.DepthImage(depth_image[::depth_image_skip, ::depth_image_skip]))
+            return depth_image
         if depth_key not in self.data_manager.all_data_seq.keys():
             if self.ax[ax_idx, 1] in self.fig.axes:
                 self.ax[ax_idx, 1].remove()
@@ -271,6 +332,8 @@ class VisualizeData:
         if self.display_stored_pointcloud:
             pointcloud_key = DataKey.get_pointcloud_key(camera_name)
             if pointcloud_key not in self.data_manager.all_data_seq.keys():
+                if self.use_rerun:
+                    return
                 if self.ax[ax_idx, 2] in self.fig.axes:
                     self.ax[ax_idx, 2].remove()
                 return
@@ -280,6 +343,8 @@ class VisualizeData:
         else:
             depth_key = DataKey.get_depth_image_key(camera_name)
             if f"{depth_key}_fovy" not in self.data_manager.meta_data.keys():
+                if self.use_rerun:
+                    return
                 if self.ax[ax_idx, 2] in self.fig.axes:
                     self.ax[ax_idx, 2].remove()
                 return
@@ -294,6 +359,9 @@ class VisualizeData:
                 far_clip=3.0,  # [m]
             )
         if not xyz_array.size:
+            return
+        if self.use_rerun:
+            rr.log(f"{camera_name}/pointcloud/rotate", rr.Points3D(positions=xyz_array, colors=rgb_array))
             return
         if self.scatter_list[ax_idx - 1] is None:
 
@@ -326,10 +394,12 @@ class VisualizeData:
 
     def plot(self):
         if self.use_rerun:
-            rr.init("Data Progress", spawn=True)
+            desc = "plot"
+        else:
+            desc = self.ax[0, 0].plot.__name__
         for time_idx in tqdm(
             range(0, len(self.data_manager.get_data_seq(DataKey.TIME)), self.skip),
-            desc=self.ax[0, 0].plot.__name__,
+            desc=desc,
         ):
             if self.quit_flag:
                 break
@@ -344,72 +414,120 @@ class VisualizeData:
 
             time_list = np.array(self.data_list[DataKey.TIME])
 
-            self.clear_axis(self.ax[0, 0])
-            self.clear_axis(self.ax00_twin)
-            # TODO: It is assumed that the last joint has a different scale (e.g., gripper joint),
-            # but this is not necessarily the case.
-            self.ax[0, 0].plot(
-                time_list,
-                np.array(self.data_list[DataKey.COMMAND_JOINT_POS])[:, :-1],
-                linestyle="--",
-                linewidth=3,
-            )
-            self.ax[0, 0].set_prop_cycle(None)
-            self.ax[0, 0].plot(
-                time_list, np.array(self.data_list[DataKey.MEASURED_JOINT_POS])[:, :-1]
-            )
-            self.ax00_twin.plot(
-                time_list,
-                np.array(self.data_list[DataKey.COMMAND_JOINT_POS])[:, [-1]],
-                linestyle="--",
-                linewidth=3,
-            )
-            self.ax00_twin.set_prop_cycle(None)
-            self.ax00_twin.plot(
-                time_list, np.array(self.data_list[DataKey.MEASURED_JOINT_POS])[:, [-1]]
-            )
-
-            self.clear_axis(self.ax[0, 1])
-            self.ax[0, 1].plot(
-                time_list, np.array(self.data_list[DataKey.MEASURED_JOINT_VEL])[:, :-1]
-            )
-
-            self.clear_axis(self.ax[0, 2])
-            self.clear_axis(self.ax02_twin)
-            self.ax[0, 2].plot(
-                time_list,
-                np.array(self.data_list[DataKey.COMMAND_EEF_POSE])[:, :3],
-                linestyle="--",
-                linewidth=3,
-            )
-            self.ax[0, 2].set_prop_cycle(None)
-            self.ax[0, 2].plot(
-                time_list, np.array(self.data_list[DataKey.MEASURED_EEF_POSE])[:, :3]
-            )
-            self.ax02_twin.plot(
-                time_list,
-                np.array(self.data_list[DataKey.COMMAND_EEF_POSE])[:, 3:],
-                linestyle="--",
-                linewidth=3,
-            )
-            self.ax02_twin.set_prop_cycle(None)
-            self.ax02_twin.plot(
-                time_list, np.array(self.data_list[DataKey.MEASURED_EEF_POSE])[:, 3:]
-            )
-
-            if DataKey.MEASURED_EEF_WRENCH in self.data_manager.all_data_seq.keys():
-                self.clear_axis(self.ax[0, 3])
-                self.ax[0, 3].plot(
-                    time_list, np.array(self.data_list[DataKey.MEASURED_EEF_WRENCH])
+            if self.use_rerun:
+                rr.set_time("step", sequence=time_idx)
+                for i in range(len(self.data_list[DataKey.MEASURED_JOINT_POS][0])-1):
+                    rr.log(
+                        f"graph/joint_pos/measured{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.MEASURED_JOINT_POS])[[-1], i])
+                    )
+                    rr.log(
+                        f"graph/joint_pos/command{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.COMMAND_JOINT_POS])[[-1], i])
+                    )
+                rr.log(
+                    "graph/gripper/measured",
+                    rr.Scalars(np.array(self.data_list[DataKey.MEASURED_JOINT_POS])[[-1], [-1]])
                 )
+                rr.log(
+                    "graph/gripper/command",
+                    rr.Scalars(np.array(self.data_list[DataKey.COMMAND_JOINT_POS])[[-1], [-1]])
+                )
+                for i in range(len(self.data_list[DataKey.MEASURED_JOINT_VEL][0])-1):
+                    rr.log(
+                        f"graph/joint_vel/vel{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.MEASURED_JOINT_VEL])[[-1], i])
+                    )
+                for i in range(3):
+                    rr.log(
+                        f"graph/eef_pose/m_pos{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.MEASURED_EEF_POSE])[[-1], i])
+                    )
+                    rr.log(
+                        f"graph/eef_pose/c_pos{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.COMMAND_EEF_POSE])[[-1], i])
+                    )
+                for i in range(3, len(self.data_list[DataKey.MEASURED_EEF_POSE][0])):
+                    rr.log(
+                        f"graph/eef_pose/m_quat{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.MEASURED_EEF_POSE])[[-1], i])
+                    )
+                    rr.log(
+                        f"graph/eef_pose/c_quat{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.COMMAND_EEF_POSE])[[-1], i])
+                    )
+                for i in range(len(self.data_list[DataKey.MEASURED_EEF_WRENCH][0])):
+                    rr.log(
+                        f"graph/eef_wrench/wrench{i}",
+                        rr.Scalars(np.array(self.data_list[DataKey.MEASURED_EEF_WRENCH])[[-1], i])
+                    )
+            else:
+                self.clear_axis(self.ax[0, 0])
+                self.clear_axis(self.ax00_twin)
+                # TODO: It is assumed that the last joint has a different scale (e.g., gripper joint),
+                # but this is not necessarily the case.
+                self.ax[0, 0].plot(
+                    time_list,
+                    np.array(self.data_list[DataKey.COMMAND_JOINT_POS])[:, :-1],
+                    linestyle="--",
+                    linewidth=3,
+                )
+                self.ax[0, 0].set_prop_cycle(None)
+                self.ax[0, 0].plot(
+                    time_list, np.array(self.data_list[DataKey.MEASURED_JOINT_POS])[:, :-1]
+                )
+                self.ax00_twin.plot(
+                    time_list,
+                    np.array(self.data_list[DataKey.COMMAND_JOINT_POS])[:, [-1]],
+                    linestyle="--",
+                    linewidth=3,
+                )
+                self.ax00_twin.set_prop_cycle(None)
+                self.ax00_twin.plot(
+                    time_list, np.array(self.data_list[DataKey.MEASURED_JOINT_POS])[:, [-1]]
+                )
+
+                self.clear_axis(self.ax[0, 1])
+                self.ax[0, 1].plot(
+                    time_list, np.array(self.data_list[DataKey.MEASURED_JOINT_VEL])[:, :-1]
+                )
+
+                self.clear_axis(self.ax[0, 2])
+                self.clear_axis(self.ax02_twin)
+                self.ax[0, 2].plot(
+                    time_list,
+                    np.array(self.data_list[DataKey.COMMAND_EEF_POSE])[:, :3],
+                    linestyle="--",
+                    linewidth=3,
+                )
+                self.ax[0, 2].set_prop_cycle(None)
+                self.ax[0, 2].plot(
+                    time_list, np.array(self.data_list[DataKey.MEASURED_EEF_POSE])[:, :3]
+                )
+                self.ax02_twin.plot(
+                    time_list,
+                    np.array(self.data_list[DataKey.COMMAND_EEF_POSE])[:, 3:],
+                    linestyle="--",
+                    linewidth=3,
+                )
+                self.ax02_twin.set_prop_cycle(None)
+                self.ax02_twin.plot(
+                    time_list, np.array(self.data_list[DataKey.MEASURED_EEF_POSE])[:, 3:]
+                )
+
+                if DataKey.MEASURED_EEF_WRENCH in self.data_manager.all_data_seq.keys():
+                    self.clear_axis(self.ax[0, 3])
+                    self.ax[0, 3].plot(
+                        time_list, np.array(self.data_list[DataKey.MEASURED_EEF_WRENCH])
+                    )
 
             for camera_idx, camera_name in enumerate(self.camera_names):
                 rgb_key = DataKey.get_rgb_image_key(camera_name)
                 depth_key = DataKey.get_depth_image_key(camera_name)
 
-                rgb_image = self.handle_rgb_image(camera_idx, time_idx, rgb_key)
+                rgb_image = self.handle_rgb_image(camera_idx, camera_name, time_idx, rgb_key)
 
-                depth_image = self.handle_depth_image(camera_idx, time_idx, depth_key)
+                depth_image = self.handle_depth_image(camera_idx, camera_name, time_idx, depth_key)
 
                 self.handle_pointcloud(
                     camera_idx,
@@ -419,14 +537,12 @@ class VisualizeData:
                     depth_image,
                 )
             if self.use_rerun:
-                canvas = FigureCanvasAgg(self.fig)
-                canvas.draw()
-                image = np.asarray(canvas.buffer_rgba())
-                rr.log("plot/image", rr.Image(image))
-                time.sleep(0.03)
+                time.sleep(0.3)
             else:
                 plt.draw()
                 plt.pause(0.001)
+
+                self.fig.canvas.mpl_connect("key_press_event", self.key_event)
 
             if self.video_writer is not None:
                 buf = io.BytesIO()
@@ -437,8 +553,6 @@ class VisualizeData:
                 self.video_writer.write(img)
                 buf.close()
 
-            self.fig.canvas.mpl_connect("key_press_event", self.key_event)
-
         if self.video_writer is not None:
             self.video_writer.release()
             print(
@@ -446,9 +560,9 @@ class VisualizeData:
                 f"File '{self.output_mp4_filename}' has been successfully saved."
             )
 
-        print(f"[{self.__class__.__name__}] Press 'Q' or 'Esc' to quit.")
-
         if not self.use_rerun:
+            print(f"[{self.__class__.__name__}] Press 'Q' or 'Esc' to quit.")
+
             plt.show()
 
     def clear_axis(self, ax):
