@@ -123,3 +123,9 @@ register(
     id="robo_manip_baselines/RealXarm7DemoEnv-v0",
     entry_point="robo_manip_baselines.envs.real.xarm7:RealXarm7DemoEnv",
 )
+
+## KinovaGen3
+register(
+    id="robo_manip_baselines/RealKinovaGen3DemoEnv-v0",
+    entry_point="robo_manip_baselines.envs.real.kinova_gen3:RealKinovaGen3DemoEnv",
+)
