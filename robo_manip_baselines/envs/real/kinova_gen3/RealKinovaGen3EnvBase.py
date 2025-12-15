@@ -4,8 +4,9 @@ from os import path
 import numpy as np
 from kortex_api.autogen.client_stubs.BaseClientRpc import BaseClient
 from kortex_api.autogen.client_stubs.BaseCyclicClientRpc import BaseCyclicClient
-from kortex_api.autogen.messages import Base_pb2
+from kortex_api.autogen.messages import Base_pb2, BaseCyclic_pb2
 from kortex_api.TCPTransport import TCPTransport
+from kortex_api.UDPTransport import UDPTransport
 from kortex_api.RouterClient import RouterClient, RouterClientSendOptions
 from kortex_api.SessionManager import SessionManager
 from kortex_api.autogen.messages import Session_pb2
@@ -23,43 +24,39 @@ from ..RealEnvBase import RealEnvBase
 
 
 def norm_180(angle):
-    angle = (angle + 180) % 360 - 180
-    if angle < -179.9:
-        return 180
+    angle = (angle + np.pi) % (2*np.pi) - np.pi
     return angle
 
-def populateAngularPose(jointPose,durationFactor):
-    waypoint = Base_pb2.AngularWaypoint()
-    waypoint.angles.extend(jointPose)
-    waypoint.duration = durationFactor  
+def joint_step(c_joint, m_joint, time, time_now):
+    joint = m_joint + (c_joint - m_joint) * time_now/time
     
-    return waypoint
+    return joint
 
 
 class RealKinovaGen3EnvBase(RealEnvBase):
     action_space = Box(
         low=np.array(
             [
-                -1 * np.pi,
-                -1 * np.pi,
-                -1 * np.pi,
-                -1 * np.pi,
-                -1 * np.pi,
-                -1 * np.pi,
-                -1 * np.pi,
+                -2 * np.pi,
+                -2 * np.pi,
+                -2 * np.pi,
+                -2 * np.pi,
+                -2 * np.pi,
+                -2 * np.pi,
+                -2 * np.pi,
                 0.0,
             ],
             dtype=np.float32,
         ),
         high=np.array(
             [
-                1 * np.pi,
-                1 * np.pi,
-                1 * np.pi,
-                1 * np.pi,
-                1 * np.pi,
-                1 * np.pi,
-                1 * np.pi,
+                2 * np.pi,
+                2 * np.pi,
+                2 * np.pi,
+                2 * np.pi,
+                2 * np.pi,
+                2 * np.pi,
+                2 * np.pi,
                 1.0,
             ],
             dtype=np.float32,
@@ -106,10 +103,10 @@ class RealKinovaGen3EnvBase(RealEnvBase):
         # Connect to KinovaGen3
         print(f"[{self.__class__.__name__}] Start connecting the KinovaGen3.")
         self.robot_ip = robot_ip
-        self.transport = TCPTransport()
-        self.router = RouterClient(self.transport, RouterClient.basicErrorCallback)
+        self.tcp_transport = TCPTransport()
+        self.router = RouterClient(self.tcp_transport, RouterClient.basicErrorCallback)
 
-        self.transport.connect(self.robot_ip, 10000)
+        self.tcp_transport.connect(self.robot_ip, 10000)
 
         self.session_info = Session_pb2.CreateSessionInfo()
         self.session_info.username = "admin"
@@ -120,9 +117,18 @@ class RealKinovaGen3EnvBase(RealEnvBase):
         self.SessionManager.CreateSession(self.session_info)
         
         self.base = BaseClient(self.router)
-        self.base_cyclic = BaseCyclicClient(self.router)
+        
+        self.udp_transport = UDPTransport()
+        self.router_realtime = RouterClient(self.udp_transport, RouterClient.basicErrorCallback)
+
+        self.udp_transport.connect(self.robot_ip, 10001)
+
+        self.session_manager_rt = SessionManager(self.router_realtime)
+        self.session_manager_rt.CreateSession(self.session_info)
+
+        self.base_cyclic = BaseCyclicClient(self.router_realtime)
         angles = self.base.GetMeasuredJointAngles()
-        self.arm_joint_pos_actual = np.array([np.deg2rad(norm_180(angles.joint_angles[i].value)) for i in range(7)])
+        self.arm_joint_pos_actual = np.array([norm_180(np.deg2rad(angles.joint_angles[i].value)) for i in range(7)])
         print(f"[{self.__class__.__name__}] Finish connecting the KinovaGen3.")
 
         # Connect to RealSense
@@ -157,8 +163,8 @@ class RealKinovaGen3EnvBase(RealEnvBase):
         print(
             f"[{self.__class__.__name__}] Start moving the robot to the reset position."
         )
-        self._set_action(
-            self.init_qpos, duration=None, joint_vel_limit_scale=0.3, wait=True
+        self._set_action_home(
+            self.init_qpos, duration=None, joint_vel_limit_scale=0.1, wait=True
         )
         print(
             f"[{self.__class__.__name__}] Finish moving the robot to the reset position."
@@ -166,8 +172,56 @@ class RealKinovaGen3EnvBase(RealEnvBase):
 
     def _set_action(self, action, duration=None, joint_vel_limit_scale=0.5, wait=False):
         start_time = time.time()
+        rate_hz = 1000
+        dt = 1.0 / rate_hz
 
         # Overwrite duration or joint_pos for safety
+        pre_arm_joint_pos = action[self.body_config_list[0].arm_joint_idxes]
+        pre_arm_joint_pos = self.arm_joint_pos_actual + norm_180(pre_arm_joint_pos - self.arm_joint_pos_actual)
+        action[self.body_config_list[0].arm_joint_idxes] = pre_arm_joint_pos
+        action, duration = self.overwrite_command_for_safety(
+            action, duration, joint_vel_limit_scale
+        )
+
+        # Send command to Robotiq gripper
+        # mode = Base_pb2.ServoingModeInformation()
+        # mode.servoing_mode = Base_pb2.SINGLE_LEVEL_SERVOING
+        # self.base.SetServoingMode(mode)
+
+        # gripper_pos = action[self.body_config_list[0].gripper_joint_idxes][0]
+        # gripper_command = Base_pb2.GripperCommand()
+        # finger = gripper_command.gripper.finger.add()
+
+        # gripper_command.mode = Base_pb2.GRIPPER_POSITION
+        # finger.finger_identifier = 1
+        # finger.value = gripper_pos / 255.0
+        # self.base.SendGripperCommand(gripper_command)
+
+        # Send command to KinovaGen3
+        arm_joint_pos_command = action[self.body_config_list[0].arm_joint_idxes]
+        dof = len(arm_joint_pos_command)
+        while time.time() - start_time < duration:
+            cmd = BaseCyclic_pb2.Command()
+            t = time.time()
+            for i in range(dof):
+                act = cmd.actuators.add()
+                act.position = np.rad2deg(joint_step(arm_joint_pos_command[i], self.arm_joint_pos_actual[i], duration, t - start_time))
+                act.flags = 1
+
+            self.base_cyclic.Refresh(cmd, 0)
+            time.sleep(dt)
+
+    def _set_action_home(self, action, duration=None, joint_vel_limit_scale=0.5, wait=False):
+        start_time = time.time()
+
+        mode = Base_pb2.ServoingModeInformation()
+        mode.servoing_mode = Base_pb2.SINGLE_LEVEL_SERVOING
+        self.base.SetServoingMode(mode)
+
+        # Overwrite duration or joint_pos for safety
+        pre_arm_joint_pos = action[self.body_config_list[0].arm_joint_idxes]
+        pre_arm_joint_pos = self.arm_joint_pos_actual + norm_180(pre_arm_joint_pos - self.arm_joint_pos_actual)
+        action[self.body_config_list[0].arm_joint_idxes] = pre_arm_joint_pos
         action, duration = self.overwrite_command_for_safety(
             action, duration, joint_vel_limit_scale
         )
@@ -175,21 +229,14 @@ class RealKinovaGen3EnvBase(RealEnvBase):
         # Send command to KinovaGen3
         arm_joint_pos_command = action[self.body_config_list[0].arm_joint_idxes]
         action_kinova = Base_pb2.Action()
+        action_kinova.reach_joint_angles.constraint.type = Base_pb2.JOINT_CONSTRAINT_DURATION
+        action_kinova.reach_joint_angles.constraint.value = duration
         for i in range(len(arm_joint_pos_command)):
             joint_angle = action_kinova.reach_joint_angles.joint_angles.joint_angles.add()
             joint_angle.joint_identifier = i
             joint_angle.value = np.rad2deg(arm_joint_pos_command[i])
 
         self.base.ExecuteAction(action_kinova)
-
-        # waypoints = Base_pb2.WaypointList()    
-        # waypoints.duration = 0.0
-        # waypoints.use_optimal_blending = False
-        # waypoint = waypoints.waypoints.add()
-
-        # waypoint.angular_waypoint.CopyFrom(populateAngularPose(np.rad2deg(arm_joint_pos_command), duration))
-
-        # self.base.ExecuteWaypointTrajectory(waypoints)
 
         # Send command to Robotiq gripper
         gripper_pos = action[self.body_config_list[0].gripper_joint_idxes][0]
@@ -198,7 +245,7 @@ class RealKinovaGen3EnvBase(RealEnvBase):
 
         gripper_command.mode = Base_pb2.GRIPPER_POSITION
         finger.finger_identifier = 1
-        finger.value = gripper_pos
+        finger.value = gripper_pos / 255.0
         self.base.SendGripperCommand(gripper_command)
 
         # Wait
@@ -206,13 +253,17 @@ class RealKinovaGen3EnvBase(RealEnvBase):
         if wait and elapsed_duration < duration:
             time.sleep(duration - elapsed_duration)
 
+        mode = Base_pb2.ServoingModeInformation()
+        mode.servoing_mode = Base_pb2.LOW_LEVEL_SERVOING
+        self.base.SetServoingMode(mode)
+
     def _get_obs(self):
         # Get state from KinovaGen3
         feedback = self.base_cyclic.RefreshFeedback()
         arm_joint_pos_list = []
         arm_joint_vel_list = []
         for act in feedback.actuators:
-            arm_joint_pos_list.append(np.deg2rad(norm_180(act.position)))
+            arm_joint_pos_list.append(norm_180(np.deg2rad(act.position)))
             arm_joint_vel_list.append(np.deg2rad(act.velocity))
         arm_joint_pos = np.array(arm_joint_pos_list)
         arm_joint_vel = np.array(arm_joint_vel_list)

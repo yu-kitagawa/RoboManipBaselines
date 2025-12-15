@@ -11,7 +11,7 @@ class RealKinovaGen3DemoEnv(RealKinovaGen3EnvBase):
         RealKinovaGen3EnvBase.__init__(
             self,
             init_qpos=np.concatenate(
-                [np.deg2rad([0.0, -20.0, 180.0, -146.0, 0.0, -50.0, 90.0]), np.array([0.0])]
+                [np.deg2rad([0.0, -20.0, -180.0, -146.0, 0.0, -50.0, 90.0]), np.array([0.0])]
             ),
             **kwargs,
         )
