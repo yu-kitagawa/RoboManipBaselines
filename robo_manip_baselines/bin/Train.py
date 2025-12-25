@@ -12,6 +12,7 @@ class TrainMain:
         "MtAct",
         "DiffusionPolicy",
         "DiffusionPolicy3d",
+        "DiffusionPolicySp",
         "FlowPolicy",
         "ManiFlowPolicy",
     ]

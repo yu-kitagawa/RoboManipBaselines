@@ -38,3 +38,6 @@
 	path = third_party/ManiFlow_Policy
 	url = https://github.com/Naoki-Shibayama/ManiFlow_Policy.git
         ignore = untracked
+[submodule "third_party/sparsh"]
+	path = third_party/sparsh
+	url = https://github.com/yu-kitagawa/sparsh.git
