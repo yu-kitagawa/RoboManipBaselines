@@ -33,6 +33,7 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         self.pointcloud_cameras = {}
         self.rgb_tactiles = {}
         self.intensity_tactiles = {}
+        self.seat_tactiles = {}
 
     def setup_realsense(self, camera_ids):
         if camera_ids is None:
@@ -203,6 +204,18 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
 
             self.intensity_tactiles[intensity_tactile_name] = intensity_tactile
 
+    def setup_pressure_sensor(self, pressure_sensor_ids):
+        if pressure_sensor_ids is None:
+            return
+
+        from flexible_pressure_sensor_sample.serial_reader import SerialReader
+
+        for seat_tactile_name, port in pressure_sensor_ids.items():
+            serial_reader = SerialReader(port)
+            serial_reader.send_command("START")
+
+            self.seat_tactiles[seat_tactile_name] = serial_reader
+
     def get_input_device_kwargs(self, input_device_name):
         return {}
 
@@ -300,6 +313,7 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
             + len(self.pointcloud_camera_names)
             + len(self.rgb_tactile_names)
             + len(self.intensity_tactile_names)
+            + len(self.seat_tactile_names)
             == 0
         ):
             return info
@@ -345,6 +359,15 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
                         intensity_tactile,
                     )
                 ] = intensity_tactile_name
+
+            for seat_tactile_name, serial_reader in self.seat_tactiles.items():
+                futures[
+                    executor.submit(
+                        self.get_seat_tactile_data,
+                        seat_tactile_name,
+                        serial_reader,
+                    )
+                ] = seat_tactile_name
 
             for future in concurrent.futures.as_completed(futures):
                 name, result = future.result()
@@ -473,6 +496,15 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
         intensity_tactile_buf[...] = intensity_tactile_value
         return intensity_tactile_name, {"intensity_tactile": intensity_tactile_value}
 
+    def get_seat_tactile_data(self, seat_tactile_name, serial_reader):
+        frame = serial_reader.read_frame()
+        if frame is None:
+            return seat_tactile_name, {}
+
+        frame_no, matrix = serial_reader.parse_frame(frame)
+
+        return seat_tactile_name, {"seat_tactile": matrix}
+
     def get_joint_pos_from_obs(self, obs):
         """Get joint position from observation."""
         return obs["joint_pos"]
@@ -525,6 +557,11 @@ class RealEnvBase(EnvDataMixin, gym.Env, ABC):
     def intensity_tactile_names(self):
         """Get names of tactile sensors with intensity output."""
         return list(self.intensity_tactiles.keys())
+
+    @property
+    def seat_tactile_names(self):
+        """Get names of tactile sensors with seat output."""
+        return list(self.seat_tactiles.keys())
 
     def get_camera_fovy(self, camera_name):
         """Get vertical field-of-view of the camera."""

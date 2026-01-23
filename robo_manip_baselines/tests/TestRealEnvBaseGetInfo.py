@@ -23,6 +23,7 @@ class DummyRealEnv(RealEnvBase):
         pointcloud_camera_ids=None,
         gelsight_ids=None,
         sanwa_keyboard_ids=None,
+        pressure_sensor_ids=None,
     ):
         super().__init__(
             robot_ip=None,
@@ -30,6 +31,7 @@ class DummyRealEnv(RealEnvBase):
             gelsight_ids=gelsight_ids,
             pointcloud_camera_ids=pointcloud_camera_ids,
             sanwa_keyboard_ids=sanwa_keyboard_ids,
+            pressure_sensor_ids=pressure_sensor_ids,
         )
 
         self.setup_realsense(camera_ids)
@@ -41,6 +43,8 @@ class DummyRealEnv(RealEnvBase):
         self.setup_gelsight(gelsight_ids)
 
         self.setup_sanwa_keyboard(sanwa_keyboard_ids)
+
+        self.setup_pressure_sensor(pressure_sensor_ids)
 
     def _reset_robot(self, *args, **kwargs):
         pass
@@ -198,6 +202,46 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
+    def show_seat_loop(self, dummy_real_env):
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        img = None
+        try:
+            while True:
+                info = dummy_real_env._get_info()
+                if "seat_tactile" not in info:
+                    continue
+                matrix = info["seat_tactile"][dummy_real_env.seat_tactile_names[0]]
+
+                if img is None:
+                    img = ax.imshow(
+                        matrix[::-1, :],
+                        cmap="turbo",
+                        vmin=0,
+                        vmax=255,
+                        interpolation="nearest",
+                    )
+                    plt.colorbar(img, ax=ax)
+                else:
+                    img.set_data(matrix[::-1, :])
+
+                ax.set_title("Frame")
+                plt.pause(0.001)
+
+        except KeyboardInterrupt:
+            print("Stopping...")
+
+        finally:
+            # センサー停止
+            dummy_real_env.seat_tactiles[
+                dummy_real_env.seat_tactile_names[0]
+            ].send_command("STOP")
+            dummy_real_env.seat_tactiles[
+                dummy_real_env.seat_tactile_names[0]
+            ].ser.close()
+            plt.ioff()
+
     @unittest.skip("Skipping.")
     def test_dummy_real_env_get_info_camera1(self):
         dummy_real_env = DummyRealEnv(
@@ -292,6 +336,11 @@ class TestRealEnvBaseGetInfo(unittest.TestCase):
                 break
         self.assert_env_info_valid(dummy_real_env)
         self.show_intensity_loop(dummy_real_env)
+
+    @unittest.skip("Skipping.")
+    def test_seat(self):
+        dummy_real_env = DummyRealEnv(pressure_sensor_ids={"seat": "/dev/ttyACM0"})
+        self.show_seat_loop(dummy_real_env)
 
 
 if __name__ == "__main__":
